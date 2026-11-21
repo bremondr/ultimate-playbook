@@ -141,7 +141,13 @@ function up(d0){
 
 export default {
   id: 'select', key: 'v',
-  hint: setup => setup ? 'Setup: drag players and cones into place. Drag a box on empty grass to select several, then move them together.'
-    : 'Drag a player to draw their run. Select several first to give them all the same run. Drag the small dot on a run to add a bend.',
+  hint: setup => {
+    // a drill without throws yet: say where they come from
+    const noThrows = !draft.steps.some(s => s.throw) && draft.players.filter(p => p.team === 'O').length > 1;
+    if (setup) return noThrows ? 'Setup: drag players into place. Then draw runs with Select and throws with Throw; each step has one throw.'
+      : 'Setup: drag players and cones into place. Drag a box on empty grass to select several, then move them together.';
+    return noThrows ? 'Drag a player to draw their run. Draw the throw with the Throw tool: one per step.'
+      : 'Drag a player to draw their run. Select several first to give them all the same run. Drag the small dot on a run to add a bend.';
+  },
   down, move, up
 };

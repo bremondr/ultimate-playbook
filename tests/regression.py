@@ -3,7 +3,7 @@
 
 Serves the folder with `python3 -m http.server`, opens it in headless Chrome (Python Playwright) and checks:
   1. no page errors and no console errors;
-  2. the main player and editor flows (and Send feedback), on an iPad-sized and a phone-sized screen;
+  2. the main player and editor flows (with drawing throws, and Send feedback), on an iPad-sized and a phone-sized screen;
   3. the saved-drills path through a mocked `window.claude` team store (as when the page runs as a Claude artifact);
   4. the model output (positions, disc, facing, marks, timing) of every built-in drill, against tests/baseline.json.
 
@@ -219,8 +219,9 @@ def editor_flow(r, base):
     r.check(r.text('#s-state') == 'Unsaved changes' and p.is_enabled('#s-undo'), 'run drawn')
     r.snap('run-drawn')
     r.click('#s-undo'); r.click('#s-redo'); r.snap('undo-redo')
-    # throw tool: thrower, then receiver
-    p.keyboard.press('t'); r.check(r.visible('#tray') and r.text('#tray-title') == 'Next throw', 'throw options')
+    # throw tool: its options wait to be asked for; thrower, then receiver redraws the step's throw
+    p.keyboard.press('t'); r.check(not r.visible('#tray'), 'throw options stay closed')
+    p.keyboard.press('t'); r.check(r.visible('#tray') and r.text('#tray-title') == 'Next throw', 'throw options on the second press')
     r.click('#tray-close')
     r.page.mouse.click(*r.piece_xy('T1')); r.page.mouse.click(*r.piece_xy('C2'))
     r.check(r.text('#tb-title') == 'Throw: T1 → C2', 'throw redrawn')
@@ -276,7 +277,7 @@ def editor_flow(r, base):
     # step 1: a run and a throw
     r.click('#strip .sbtn:nth-of-type(2)'); r.fold()
     a = r.piece_xy('c2'); r.drag(a, (a[0] + 50, a[1] - 30))
-    p.keyboard.press('t'); r.click('#tray-close')
+    p.keyboard.press('t')
     p.mouse.click(*r.piece_xy('h1')); p.mouse.click(*r.piece_xy('c2'))
     r.check(r.text('#tb-title') == 'Throw: H1 → 2', f'throw in step 1: {r.text("#tb-title")}')
     r.tab('step'); p.fill('#e-title', 'Under cut'); p.keyboard.press('Tab')
@@ -300,6 +301,33 @@ def editor_flow(r, base):
     r.wait("document.querySelector('#pname').textContent === 'Vertical stack: under & deep'")
     r.check(p.evaluate('location.hash') == '#vert-stack' and r.saved_here() == 1, 'drill deleted')
     r.snap('deleted')
+
+
+def throw_flow(r, base):
+    """Drawing throws as a first-time user would (issue #20): one tap on the receiver, continuing, dragging."""
+    p = r.page
+    p.goto(base); r.wait("document.querySelector('#pname').textContent !== '—'")
+    r.click('#menu'); r.click('#new'); r.click('#new-blank'); r.fold()
+    r.tool('off'); r.tap_field(60, 18); r.tap_field(70, 18)
+    ids = p.evaluate("import('./js/editor/session.js').then(s => s.draft.players.filter(q => q.team === 'O').map(q => q.id))")
+    throws = lambda: p.evaluate("import('./js/editor/session.js').then(s => s.draft.steps.map(x => x.throw ? s.labelOf(x.throw.from) + '>' + s.labelOf(x.throw.to) : '-'))")
+    p.keyboard.press('t')
+    r.check(not r.visible('#tray') and r.text('#hint').startswith('Tap the receiver for a throw from 1'), f'throw tool in setup: {r.text("#hint")}')
+    # in Setup, one tap on the receiver draws the first throw and shows its step
+    p.mouse.click(*r.piece_xy(ids[1]))
+    r.check(throws() == ['1>2'] and r.text('#st-h') == 'Step 1 of 1' and r.text('#tb-title') == 'Throw: 1 → 2', f'one tap: {throws()}')
+    # another tap continues in a new step
+    p.mouse.click(*r.piece_xy(ids[2]))
+    r.check(throws() == ['1>2', '2>3'] and r.text('#st-h') == 'Step 2 of 2', f'next throw: {throws()}')
+    r.snap('throw-continue')
+    # dragging from the thrower to the receiver
+    r.fold(); r.drag(r.piece_xy(ids[2]), r.piece_xy(ids[0]))
+    r.check(throws() == ['1>2', '2>3', '3>1'] and r.text('#st-h') == 'Step 3 of 3', f'drag: {throws()}')
+    # a thrower without the disc is refused
+    r.fold(); r.drag(r.piece_xy(ids[1]), r.piece_xy(ids[2]))
+    r.check(throws() == ['1>2', '2>3', '3>1'] and r.text('#hint').startswith('2 doesn’t have the disc here'), f'wrong thrower: {r.text("#hint")}')
+    p.keyboard.press('Control+z')
+    r.check(throws() == ['1>2', '2>3'] and r.text('#st-h') == 'Step 2 of 2', f'undo: {throws()}')
 
 
 def team_flow(r, base, can_write):
@@ -359,7 +387,7 @@ def main():
                 return Run(page, name, trace, args.shots)
 
             for vp, size in VIEWPORTS.items():
-                for flow in (player_flow, editor_flow):
+                for flow in (player_flow, editor_flow, throw_flow):
                     r = page_for(f'{flow.__name__[:-5]}-{vp}', size)
                     try: flow(r, base)
                     except Exception as e: r.failures.append(f'{r.name}: stopped: {e}')
