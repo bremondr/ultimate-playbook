@@ -58,6 +58,8 @@ html,body{height:100%}
 .pop{position:absolute;top:calc(env(safe-area-inset-top,0px) + 92px);left:max(12px,env(safe-area-inset-left,0px));z-index:15;width:min(440px,calc(100% - 24px));max-height:calc(100% - 140px);overflow-y:auto;
   background:var(--raised);border:1px solid var(--rule);border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.18);padding:16px;display:flex;flex-direction:column;gap:12px}
 .pop.right{left:auto;right:max(12px,env(safe-area-inset-right,0px));width:min(300px,calc(100% - 24px))}
+#share-pop{width:min(380px,calc(100% - 24px))}
+.sharelink{width:100%;font-family:var(--mono);font-size:12px;color:var(--ink);background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:9px 10px;min-height:40px}
 .pop h3{font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:4px 0 0}
 .pop p{margin:0;color:var(--ink);line-height:1.5}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -282,6 +284,7 @@ body.editing .app{display:none}
     <div class="vtitle"><span class="k" id="pkind">Play</span><h2 id="pname">—</h2></div>
     <span class="sp"></span>
     <button class="ibtn" id="info" type="button" aria-expanded="false" aria-controls="info-pop" title="About this drill"><svg viewBox="0 0 24 24"><path d="M11 10h2v7h-2zm0-3h2v2h-2zm1-5a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/></svg></button>
+    <button class="ibtn" id="share" type="button" aria-expanded="false" aria-controls="share-pop" title="Share a link to this drill"><svg viewBox="0 0 24 24"><path d="M18 16a3 3 0 0 0-2.4 1.2l-6.7-3.4a3 3 0 0 0 0-1.6l6.7-3.4A3 3 0 1 0 15 7c0 .3 0 .5.1.8L8.4 11.2a3 3 0 1 0 0 3.6l6.7 3.4A3 3 0 1 0 18 16z"/></svg></button>
     <button class="ibtn" id="opts" type="button" aria-expanded="false" aria-controls="opts-pop" title="Playback options"><svg viewBox="0 0 24 24"><path d="M3 17h6v2H3zm0-12h10v2H3zm8 14v-2h10v-2H11v-2H9v6zM7 9v2H3v2h4v2h2V9zm14 4v-2H11v2zm-6-4h2V7h4V5h-4V3h-2z"/></svg></button>
     <button class="pill" id="act" type="button" hidden></button>
   </header>
@@ -301,6 +304,13 @@ body.editing .app{display:none}
   <div class="pop" id="info-pop" hidden>
     <p id="psum"></p>
     <div class="chips" id="pchips"></div>
+  </div>
+  <div class="pop right" id="share-pop" hidden>
+    <h3>Share this drill</h3>
+    <p class="small" id="share-what"></p>
+    <input id="share-link" readonly aria-label="Link to this drill" class="sharelink">
+    <div class="btnrow"><button class="primary" id="share-copy" type="button">Copy link</button><button class="ghost" id="share-native" type="button" hidden>Share…</button></div>
+    <p class="small" id="share-status" role="status"></p>
   </div>
   <div class="pop right" id="opts-pop" hidden>
     <h3>Playback</h3>
@@ -1178,6 +1188,7 @@ function buildNav(){
 function markNav(){ document.querySelectorAll('.item').forEach(b => b.setAttribute('aria-current', current && current.source !== 'preview' && b.dataset.id === current.id ? 'true' : 'false')); }
 
 function select(id){
+  if (id && id.startsWith('d=')){ openShared(id.slice(2)); return; }
   const entries = libEntries();
   let e = entries.find(x => x.id === id);
   if (!e){ if (id && storeMode === 'pending') pendingId = id; e = entries[0]; }
@@ -1189,7 +1200,7 @@ function showPlay(play, meta){
   svg.classList.toggle('no-def', !$('#t-def').checked);
   model = compile(play); t = 0; endHold = 0;
   markNav();
-  $('#pkind').textContent = meta.source === 'preview' ? 'Preview · not saved yet' : play.kind + (meta.source === 'team' ? (storeMode === 'db' ? ' · team' : ' · saved here') : '');
+  $('#pkind').textContent = meta.source === 'preview' ? 'Preview · not saved yet' : meta.source === 'shared' ? play.kind + ' · shared with you' : play.kind + (meta.source === 'team' ? (storeMode === 'db' ? ' · team' : ' · saved here') : '');
   $('#pname').textContent = play.name; $('#psum').textContent = play.summary;
   const chips = $('#pchips'); chips.replaceChildren();
   (play.chips || []).forEach(([k,v]) => { const c = document.createElement('span'); c.className = 'chip'; c.append(k + ' '); const s = document.createElement('strong'); s.textContent = v; c.appendChild(s); chips.appendChild(c); });
@@ -1216,6 +1227,7 @@ function updateAct(){
   if (!current){ b.hidden = true; return; }
   const pencil = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.8 9.94l-3.75-3.75zM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"/></svg>';
   if (current.source === 'preview'){ b.hidden = false; b.innerHTML = pencil + 'Back to editing'; return; }
+  if (current.source === 'shared'){ b.hidden = false; b.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10z"/></svg>Save to my drills'; return; }
   if (canWrite === false){ b.hidden = true; return; }
   b.hidden = false;
   b.innerHTML = pencil + (current.source === 'team' ? 'Edit' : 'Edit a copy');
@@ -1223,11 +1235,21 @@ function updateAct(){
 $('#act').addEventListener('click', () => {
   if (!current) return;
   if (current.source === 'preview'){ backToEditor(); return; }
+  if (current.source === 'shared'){ saveShared(); return; }
   const e = libEntries().find(x => x.id === current.id); if (!e) return;
   if (e.source === 'team') openEditor({...clone(e.raw), id:e.id, docId:e.id});
   else openEditor(copyOfBuiltin(e.play));
 });
 
+async function saveShared(){
+  if (!sharedRaw) return;
+  const id = newDocId(), now = Date.now(), body = serialize(sharedRaw); body.createdAt = now; body.updatedAt = now;
+  try {
+    await saveDrill(id, body);
+    const raw = readRaw(body), entry = {id, raw, play: {...timeDraft({...raw, id}), id}};
+    team.push(entry); buildNav(); sharedRaw = null; location.hash = id;
+  } catch (err){ $('#pkind').textContent = errText(err); }
+}
 function setPlaying(v){
   playing = v; if (!v && stopAt !== null && t < stopAt - 1e-3) stopAt = null;
   $('#play').setAttribute('aria-label', v ? 'Pause' : 'Play');
@@ -2310,7 +2332,7 @@ function openDrawer(on){
   if (on){ closePops(); const cur = $('#nav .item[aria-current="true"]') || $('#nav .item'); if (cur) cur.focus({preventScroll:false}); }
 }
 function closePops(except){
-  [['#info','#info-pop'],['#opts','#opts-pop']].forEach(([b, p]) => { if (p === except) return; $(p).hidden = true; $(b).setAttribute('aria-expanded', 'false'); });
+  [['#info','#info-pop'],['#opts','#opts-pop'],['#share','#share-pop']].forEach(([b, p]) => { if (p === except) return; $(p).hidden = true; $(b).setAttribute('aria-expanded', 'false'); });
 }
 function togglePop(btn, pop){
   const open = $(pop).hidden; closePops(pop); $(pop).hidden = !open; $(btn).setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -2320,7 +2342,76 @@ $('#drawer-close').addEventListener('click', () => openDrawer(false));
 $('#scrim').addEventListener('click', () => openDrawer(false));
 $('#info').addEventListener('click', () => togglePop('#info', '#info-pop'));
 $('#opts').addEventListener('click', () => togglePop('#opts', '#opts-pop'));
-document.addEventListener('pointerdown', e => { if (!e.target.closest('.pop, #info, #opts')) closePops(); });
+document.addEventListener('pointerdown', e => { if (!e.target.closest('.pop, #info, #opts, #share')) closePops(); });
+
+/* ---------- sharing by link: the whole drill travels in the link, no server needed ----------
+   Built-in drills link by name (#angel). Drawn drills are packed: JSON, deflated, base64url, after #d=.
+   Links always point at the public site, so they open anywhere. */
+const SHARE_BASE = 'https://bremondr.github.io/ultimate-playbook/';
+const shareBase = () => location.hostname.endsWith('github.io') ? location.origin + location.pathname : SHARE_BASE;
+function b64uEncode(bytes){ let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function b64uDecode(t){ const b = atob(t.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((t.length + 3) % 4)); return Uint8Array.from(b, c => c.charCodeAt(0)); }
+async function packDrill(body){
+  const json = new TextEncoder().encode(JSON.stringify(body));
+  if (typeof CompressionStream === 'function'){
+    const out = await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer();
+    return 'z' + b64uEncode(new Uint8Array(out));
+  }
+  return 'j' + b64uEncode(json);
+}
+async function unpackDrill(t){
+  let bytes = b64uDecode(t.slice(1));
+  if (t[0] === 'z') bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+let sharedRaw = null;
+async function shareLink(){
+  if (!current) return null;
+  if (current.source === 'builtin') return shareBase() + '#' + current.id;
+  let raw = null;
+  if (current.source === 'team'){ const e = team.find(x => x.id === current.id); raw = e && e.raw; }
+  else if (current.source === 'preview') raw = draft;
+  else if (current.source === 'shared') raw = sharedRaw;
+  if (!raw) return null;
+  const body = serialize({...raw, name: raw.name || 'Untitled drill'});
+  return shareBase() + '#d=' + await packDrill(body);
+}
+async function openShare(){
+  const pop = $('#share-pop');
+  if (!pop.hidden){ togglePop('#share', '#share-pop'); return; }
+  togglePop('#share', '#share-pop');
+  $('#share-status').textContent = ''; $('#share-link').value = 'Making the link…';
+  $('#share-what').textContent = current && current.source === 'builtin'
+    ? 'Anyone with this link sees this drill on the Ultimate Playbook site.'
+    : 'The whole drill is packed into the link itself, so it works without any account or server. Whoever opens it can watch it and save their own copy.';
+  try {
+    const url = await shareLink();
+    $('#share-link').value = url || 'This drill can’t be shared.';
+    $('#share-native').hidden = !(url && navigator.share && window.top === window);
+  } catch (err){ $('#share-link').value = 'Couldn’t make a link in this browser.'; }
+}
+$('#share').addEventListener('click', openShare);
+$('#share-copy').addEventListener('click', () => {
+  const inp = $('#share-link'), url = inp.value;
+  const done = () => { $('#share-status').textContent = 'Link copied.'; };
+  const fallback = () => { inp.focus(); inp.select(); $('#share-status').textContent = 'Press Ctrl+C (or ⌘C) to copy the selected link.'; };
+  try { navigator.clipboard.writeText(url).then(done, fallback); } catch (e){ fallback(); }
+});
+$('#share-native').addEventListener('click', () => {
+  const url = $('#share-link').value;
+  navigator.share({title: model ? model.play.name : 'Ultimate Playbook', url}).catch(() => {});
+});
+async function openShared(packed){
+  try {
+    const raw = readRaw(await unpackDrill(packed));
+    if (!raw) throw new Error('empty');
+    sharedRaw = raw;
+    showPlay({...timeDraft({...raw, id:'shared'}), id:'shared'}, {source:'shared', id:'shared'});
+  } catch (err){
+    showPlay(BUILTIN[0], {source:'builtin', id:BUILTIN[0].id});
+    $('#pkind').textContent = 'That shared link is damaged or incomplete';
+  }
+}
 
 /* ---------- viewer controls ---------- */
 $('#play').addEventListener('click', () => setPlaying(!playing));

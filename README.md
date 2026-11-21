@@ -10,6 +10,7 @@ Open `index.html` in a browser, or use the GitHub Pages site for this repository
 - Tap the field to play the next step and stop at its end. The play button runs the whole thing.
 - The caption under the field shows the current step's coaching note and throw.
 - ⓘ shows the summary. The options button sets speed, pausing after each step, looping, arrows and defense.
+- The share button gives a link to the drill. Built-in drills link by name; drills you drew are packed into the link itself, so it works without any server or account. Whoever opens it can watch it and tap **Save to my drills**.
 - The field always runs along the longer side of the screen. The offense attacks toward the pink end zone ("Score here").
 
 Built in: vertical stack, horizontal stack, dump & swing, go-to drill, box drill, angel drill, and the angel drill with a fake and cut back.
@@ -25,9 +26,9 @@ Built in: vertical stack, horizontal stack, dump & swing, go-to drill, box drill
 - **Drill tab**: 7 v 7 or 5 v 5, full field (100 × 37 m) or small field (75 × 25 m), formations (vertical stack, vertical stack with dump, horizontal stack, side stack) and person defense with a force.
 - Keyboard: V O D G C T E switch tools, Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z redo, Ctrl/Cmd+S save, arrows nudge.
 
-Outside claude.ai, drills you draw are saved in the browser you drew them in.
+Drills you draw are saved in this browser (local storage). To move one to another device, share its link and save it there.
 
 ## To do
 
 - Make it installable on the iPad home screen and usable offline (web app manifest and service worker).
-- Shared saving outside claude.ai.
+- Saving drills to a shared place for the whole team (for now each browser keeps its own).
