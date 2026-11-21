@@ -78,7 +78,8 @@ $('#opts').addEventListener('click', () => togglePop('#opts', '#opts-pop'));
 document.addEventListener('pointerdown', e => { if (!e.target.closest('.pop, #info, #opts, #share')) closePops(); });
 
 /* ---------- share popover ---------- */
-async function shareLink(){
+// also used by Send feedback (js/features/feedback.js) for its reopen link
+export async function shareLink(){
   if (!current) return null;
   if (current.source === 'builtin') return builtinLink(current.id);
   let raw = null;

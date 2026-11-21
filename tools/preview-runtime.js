@@ -5,7 +5,9 @@
    1. Gives the preview its own browser storage. Every version on the GitHub Pages site shares one origin, so
       without this a preview would read and overwrite the drills and settings saved by production and by the
       other previews. Every localStorage and sessionStorage key gets a per-preview prefix instead, unseen by the app.
-   2. Shows a small badge, so nobody mistakes a preview for the real app.
+   2. Shows a small badge, so nobody mistakes a preview for the real app, with a Feedback link: it asks the app for
+      its Send feedback panel (a cancelable `playbook:feedback` event, js/features/feedback.js); a version of the app
+      without that panel doesn't cancel it, and the link then opens a new issue with only the preview filled in.
 
    The `null` after the BUILD marker below is replaced with this preview's description when it is built. */
 (function (root) {
@@ -58,6 +60,19 @@
     toggle.style.cssText = 'border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;padding:4px 6px;white-space:nowrap';
     badge.appendChild(toggle);
 
+    const feedback = doc.createElement('a');
+    feedback.textContent = 'Feedback';
+    feedback.href = feedbackUrl(info, root);
+    feedback.target = '_blank';
+    feedback.rel = 'noopener';
+    feedback.style.cssText = 'color:#ffd9a8;text-decoration:underline;padding:4px 6px;white-space:nowrap';
+    feedback.addEventListener('click', e => {
+      const ev = new root.CustomEvent('playbook:feedback', {cancelable: true});
+      if (!doc.dispatchEvent(ev)) e.preventDefault();   // the app opened its panel
+      else feedback.href = feedbackUrl(info, root);      // the page address now, with the drill on screen
+    });
+    badge.appendChild(feedback);
+
     const more = doc.createElement('span');
     more.hidden = true;
     more.style.cssText = 'display:flex;align-items:center;gap:10px;white-space:nowrap';
@@ -90,6 +105,18 @@
     doc.body.appendChild(badge);
   }
 
+  // a new issue with what the preview knows; the app's own panel (js/features/feedback.js) fills in much more
+  function feedbackUrl(info, win) {
+    const loc = win.location || {}, nav = win.navigator || {};
+    const body = ['## What’s wrong, and what should happen', '', '', '', '## On screen', '',
+      `- Where: Preview ${info.label}${info.sha ? ` (commit ${info.sha})` : ''}`,
+      `- Page: ${loc.href || ''}`,
+      `- Screen: ${win.innerWidth} × ${win.innerHeight} px`,
+      `- Browser: ${nav.userAgent || ''}`].join('\n');
+    return 'https://github.com/bremondr/ultimate-playbook/issues/new?title=' + encodeURIComponent(`Feedback on preview ${info.label}`)
+      + '&labels=feedback&body=' + encodeURIComponent(body);
+  }
+
   if (build) {
     root.PLAYBOOK_PREVIEW = build;
     if (typeof root.Storage === 'function') installStoragePrefix(root.Storage, build.storagePrefix);
@@ -102,5 +129,5 @@
     }
   }
 
-  root.__playbookPreview = {installStoragePrefix, showBadge};
+  root.__playbookPreview = {installStoragePrefix, showBadge, feedbackUrl};
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -32,3 +32,12 @@ export async function readShared(packed){
   if (!raw) throw new Error('empty');
   return raw;
 }
+
+/* A playback time carried after the drill in a link, so a link can open a drill at a given moment (Send feedback
+   uses it): `#angel&t=2.8` or `#d=…&t=2.8`. splitTime reads it back from the part after #. */
+export const withTime = (link, t) => `${link}&t=${Math.round(t * 100) / 100}`;
+export function splitTime(hash){
+  const [id, ...opts] = String(hash || '').split('&');
+  const m = opts.map(o => /^t=(\d+(?:\.\d+)?)$/.exec(o)).find(Boolean);
+  return {id, t: m ? +m[1] : null};
+}

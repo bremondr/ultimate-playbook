@@ -3,7 +3,7 @@
 
 Serves the folder with `python3 -m http.server`, opens it in headless Chrome (Python Playwright) and checks:
   1. no page errors and no console errors;
-  2. the main player and editor flows, on an iPad-sized and a phone-sized screen;
+  2. the main player and editor flows (and Send feedback), on an iPad-sized and a phone-sized screen;
   3. the saved-drills path through a mocked `window.claude` team store (as when the page runs as a Claude artifact);
   4. the model output (positions, disc, facing, marks, timing) of every built-in drill, against tests/baseline.json.
 
@@ -13,7 +13,7 @@ Serves the folder with `python3 -m http.server`, opens it in headless Chrome (Py
 --root serves another copy of the app (for example an older version), --trace writes what each step of the flows
 showed to a JSON file, and --shots saves screenshots, so two versions can be compared.
 """
-import argparse, json, os, pathlib, socket, subprocess, sys, time, urllib.request
+import argparse, json, os, pathlib, socket, subprocess, sys, time, urllib.parse, urllib.request
 from playwright.sync_api import sync_playwright
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -175,6 +175,19 @@ def player_flow(r, base):
     r.check(p.input_value('#share-link') == 'https://bremondr.github.io/ultimate-playbook/#angel', 'built-in link')
     r.snap('share-builtin')
     p.keyboard.press('Escape')
+    # send feedback: a picture of the field and a filled-in issue with a link back to this moment
+    r.click('#next'); r.click('#opts'); r.click('#opts-feedback'); r.check(r.visible('#fb'), 'feedback panel open')
+    r.wait("document.querySelector('#fb-open').getAttribute('href') && !document.querySelector('#fb-img').hidden")
+    issue = urllib.parse.urlsplit(p.get_attribute('#fb-open', 'href')); q = urllib.parse.parse_qs(issue.query)
+    r.check(issue.path == '/bremondr/ultimate-playbook/issues/new' and q['labels'] == ['feedback']
+            and q['title'] == ['Feedback: Angel drill (step 2)'], f'feedback issue {q.get("title")}')
+    r.check('(https://bremondr.github.io/ultimate-playbook/#angel&t=3.3)' in q['body'][0]
+            and '| On screen | Player: step 2 of 6 (Thrower cuts, horizontal pass)' in q['body'][0], 'feedback body')
+    r.check(p.evaluate("document.querySelector('#fb-img').naturalWidth") >= 390, 'feedback picture')
+    r.snap('feedback')
+    p.keyboard.press('Escape'); r.check(not r.visible('#fb'), 'escape closes feedback')
+    p.goto(base + '#angel&t=4'); r.wait("document.querySelector('#pname').textContent === 'Angel drill'")
+    r.check(r.text('#cap-n') == 'Step 2 of 6' and r.text('#time') == '4.0 / 21.4 s', 'a link with a time opens at that moment')
     p.goto(base + '#d=zBroken'); r.wait("document.querySelector('#pkind').textContent.includes('damaged')")
     r.check(r.text('#pname') == 'Vertical stack: under & deep', 'damaged link falls back to the first drill')
     p.goto(base + '#box'); r.wait("document.querySelector('#pname').textContent === 'Box drill'")
@@ -269,7 +282,13 @@ def editor_flow(r, base):
     r.snap('discarded')
     # delete a saved drill
     r.click('#menu'); r.page.locator('#nav .item:has(.tag)').first.click(); r.click('#act')
-    r.tab('drill'); r.click('#e-delete'); r.click('#e-delete')
+    r.tab('drill')
+    # send feedback from the editor: the issue says where in the editor
+    r.click('#e-feedback'); r.wait("document.querySelector('#fb-open').getAttribute('href')")
+    q = urllib.parse.parse_qs(urllib.parse.urlsplit(p.get_attribute('#fb-open', 'href')).query)
+    r.check(q['title'][0].endswith('(editor, setup)') and '| On screen | Editor: setup, tool ' in q['body'][0], f'editor feedback {q["title"]}')
+    r.click('#fb-close'); r.check(not r.visible('#fb') and r.visible('#studio'), 'feedback closed, still editing')
+    r.click('#e-delete'); r.click('#e-delete')
     r.wait("document.querySelector('#pname').textContent === 'Vertical stack: under & deep'")
     r.check(p.evaluate('location.hash') == '#vert-stack' and r.saved_here() == 1, 'drill deleted')
     r.snap('deleted')
@@ -324,7 +343,7 @@ def main():
 
             def page_for(name, size, *scripts):
                 ctx = browser.new_context(viewport={'width': size[0], 'height': size[1]})
-                ctx.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base) else route.fulfill(status=200, body=''))
+                ctx.route('**/*', lambda route: route.continue_() if route.request.url.startswith(base) else route.fulfill(status=200, body='', headers={'Access-Control-Allow-Origin': '*'}))
                 for s in (DETERMINISM, *scripts): ctx.add_init_script(s)
                 page = ctx.new_page()
                 page.on('pageerror', lambda e: failures.append(f'{name}: page error: {e}'))

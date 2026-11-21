@@ -13,6 +13,7 @@ Use the GitHub Pages site for this repository, or serve this folder locally (`py
 - The share button gives a link to the drill. Built-in drills link by name; drills you drew are packed into the link itself, so it works without any server or account. Whoever opens it can watch it and tap **Save to my drills**. The share panel also shows the link as a QR code for players to scan at practice; tap it, or **Show QR code larger**, to fill the screen with it. Very long drawn drills can be too long for a QR code; then send the link instead.
 - The present button (a screen with a play mark, in the top bar on the iPad and wider screens) shows the key, the field and a large step caption, full screen where the browser allows it, and keeps the screen awake. Tap the field for the next step, **Step back** (or ←) to go back, and **Exit** (or Escape) to leave. iPad Safari doesn't always allow full screen; the app then uses the same layout inside the page. Added to the home screen, the app already fills the screen.
 - The field always runs along the longer side of the screen. The offense attacks toward the pink end zone ("Score here").
+- **Send feedback** (at the bottom of the options popover, in the editor's Drill tab, and in the tab of a pull request preview) reports a problem or an idea as a GitHub issue. It copies a picture of the field as it is at that moment, also offering to save or share it, and opens a new issue already filled in: live app or preview and its commit, the drill, the step and time (in the editor: the step, tool and tab), the field, the screen and the browser, and a link that reopens the drill at that moment. Sign in to GitHub, paste or attach the picture, say what's wrong, and tap Submit. The issue gets the `feedback` label. The picture shows only the field: a page can't take a screenshot of itself on iPad Safari, so a problem with the bars or panels around the field still needs an iPad screenshot (top button + volume up). Links can carry a time after the drill, like `#angel&t=4`, to open at that moment.
 
 Built in: vertical stack, horizontal stack, dump & swing, go-to drill, box drill, angel drill, and the angel drill with a fake and cut back.
 
@@ -60,7 +61,7 @@ data → model → render → services (library, storage, share) → UI (player,
 - `js/render/`: SVG drawing. `view.js` (which field is drawn, which way it is turned, and whether the player or the editor has it), `svg.js` (field-to-screen mapping), `pitch.js` (the field), `pieces.js` (players, cones, throws, fakes, the disc), `thumb.js` (formation previews).
 - Services: `js/library.js` (built-in plus saved drills; the built-in list is put together the first time it is needed), `js/storage.js` (saving in this browser, or the shared team store when the page runs as a Claude artifact), `js/share.js` (links with the drill packed in).
 - `js/player.js` (playback), `js/nav.js` (drill list, popovers including Share, new-drill chooser).
-- `js/features/`: self-contained features (UI layer), each wired in at a few commented points. `qr.js` (QR code encoder and the QR code in the share panel), `backup.js` (back up and restore drills as a `.json` file), `present.js` (presentation mode). Their styles are in `css/features.css`.
+- `js/features/`: self-contained features (UI layer), each wired in at a few commented points. `qr.js` (QR code encoder and the QR code in the share panel), `backup.js` (back up and restore drills as a `.json` file), `present.js` (presentation mode), `feedback.js` (Send feedback: the picture of the field and the panel) with `feedback-issue.js` (the filled-in issue, no DOM). Their styles are in `css/features.css`.
 - `js/editor/`: the drill editor.
   - `studio.js` opens, closes, previews, saves and deletes, and wires the editor's events.
   - `session.js` (the drill being drawn, the step on screen, the tool in hand, the selection), `history.js` (undo and redo), `canvas.js` (drawing the draft and asking where things are), `hint.js` (the hint line), `tabs.js` (the property tabs and the bottom sheet), `viewport.js` (zoom and turning the field).
@@ -76,7 +77,7 @@ data → model → render → services (library, storage, share) → UI (player,
 There is nothing to build. Three checks:
 
 - `node tools/check-imports.mjs` checks that the modules have no import cycles and that every import points down the layers. Plain Node, no packages.
-- `node --test tools/*.test.mjs tests/*.test.mjs` runs the unit tests: attacker labels (`tests/labels.test.mjs`) and the site build for previews (`tools/build-site.test.mjs`). Plain Node.
+- `node --test tools/*.test.mjs tests/*.test.mjs` runs the unit tests: attacker labels (`tests/labels.test.mjs`), the feedback issue and times in links (`tests/feedback.test.mjs`), and the site build for previews (`tools/build-site.test.mjs`). Plain Node.
 - `python3 tests/regression.py` serves the folder with `python3 -m http.server`, opens it in headless Chrome with Python Playwright, and checks that there are no page or console errors, the main player and editor flows on an iPad-sized and a phone-sized screen, saving to a mocked team store (as when the page runs as a Claude artifact), and the model output of every built-in drill against `tests/baseline.json`. It needs Python Playwright (`pip install playwright`) and a Chrome: `CHROME_PATH` if set, else `/usr/bin/google-chrome` (as in CI), else Playwright's own Chromium (`python -m playwright install chromium`, the easy way on Windows and macOS). After a deliberate change to the model, rewrite the baseline with `--update-baseline`. `--trace FILE` and `--shots DIR` record what each step showed, to compare two versions (`--root DIR` serves another copy of the app).
 
 ## Previews of pull requests
@@ -94,7 +95,7 @@ Opening or pushing to a pull request updates its preview, and a comment on the p
 A preview differs from the live app in three ways, all added when the site is built (the app's own files never contain them):
 
 - **Its own saved drills.** Every version shares one browser origin, so `tools/preview-runtime.js` gives each preview its own storage keys (`preview:pr-NUMBER:`): a preview never sees or changes the live app's drills, or another preview's.
-- **A small tab** in the bottom-right corner (Preview PR #NUMBER). Tap it for the commit and links to the pull request, the live app and the other previews; × hides it.
+- **A small tab** in the bottom-right corner (Preview PR #NUMBER). Tap it for the commit and links to the pull request, the live app and the other previews; × hides it. Its **Feedback** link opens the app's Send feedback panel; on a preview of a version without that panel it opens a new issue with only the preview filled in.
 - **No offline mode.** Its service worker is replaced with one that does nothing, because the caches are shared by every version too. It also isn't listed by search engines.
 
 Share links made in a preview open in that preview.
