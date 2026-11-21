@@ -20,18 +20,20 @@
 .backup .small:empty{display:none}
 
 /* ---------- presentation mode (js/features/present.js) ---------- */
-/* Only the field and a large step caption. The caption keeps a fixed height, so the field doesn't jump between steps. */
+/* The key, the field and a large step caption. The caption is as tall as the drill's longest one (fitCaption in player.js),
+   so the field doesn't jump between steps. */
 #present[aria-pressed="true"]{background:var(--accent-soft)}
 @media (max-width:640px){ #present{display:none} }   /* no room in a phone's top bar; phones in landscape get it */
 .presctl{display:flex;align-items:center;gap:8px;flex:none}
 .presctl .preshint{margin-right:6px;white-space:nowrap}
 .presctl .ibtn{height:48px;min-width:48px;font-weight:600}
-body.presenting .app{grid-template-rows:minmax(0,1fr) auto}
-body.presenting .vbar,body.presenting .keyline,body.presenting .transport-row,body.presenting .pop,
+body.presenting .app{grid-template-rows:auto minmax(0,1fr) auto}
+body.presenting .vbar,body.presenting .transport-row,body.presenting .pop,
 body.presenting .drawer,body.presenting .scrim{display:none!important}
 body.presenting .vstage{padding:12px 16px 6px}
 body.presenting .vfoot{flex-direction:row;align-items:center;gap:20px;padding:12px 20px 14px}
-body.presenting .cap{flex:1;min-width:0;height:150px}
+body.presenting .keyline{font-size:14px;padding-block:8px;flex-wrap:wrap}   /* the key wraps rather than scrolls: nobody scrolls it during a talk */
+body.presenting .cap{flex:1;min-width:0}
 body.presenting .capline b{font-size:20px}
 body.presenting .capline span{font-family:var(--display);font-weight:700;font-size:34px;line-height:1.1;text-transform:uppercase}
 body.presenting .cap p{font-size:21px;line-height:1.4;margin-top:6px}
@@ -40,19 +42,16 @@ body.presenting .cap small{font-size:16px;margin-top:4px}
   body.presenting .vfoot{flex-direction:column-reverse;align-items:stretch;gap:8px;padding:10px 14px 12px}
   body.presenting .presctl{justify-content:flex-end}
   body.presenting .presctl .preshint{margin-right:auto}
-  body.presenting .cap{height:180px}
   body.presenting .capline span{font-size:26px}
   body.presenting .cap p{font-size:18px}
 }
 @media (max-width:640px){
-  body.presenting .cap{height:170px}
   body.presenting .capline span{font-size:22px}
   body.presenting .cap p{font-size:16px}
   .presctl .ibtn span{display:none}
 }
 @media (max-height:500px) and (orientation:landscape){   /* phones on their side: keep most of the height for the field */
   body.presenting .vfoot{padding:6px 16px 8px}
-  body.presenting .cap{height:84px}
   body.presenting .capline span{font-size:22px}
   body.presenting .cap p{font-size:15px;margin-top:2px}
   body.presenting .presctl .preshint{display:none}
