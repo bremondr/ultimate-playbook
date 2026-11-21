@@ -1,0 +1,110 @@
+name: Deploy site
+
+# The live app is main, published at the root of the GitHub Pages site. Every open pull request from this
+# repository is published as a preview under /preview/pr-<number>/. Each run rebuilds the whole site from git
+# (tools/build-site.mjs), so a preview disappears by itself when its pull request is closed or merged.
+# The last step comments on every open pull request with its preview link (or why it has none).
+#
+# pull_request_target is used on purpose: the workflow and the build script that run are always the ones on
+# main, and a pull request's files are only copied out of git, never run here. Pull requests from forks are
+# skipped, because every version on the site shares one origin (and so one browser storage).
+
+on:
+  push:
+    branches: [main]
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review, closed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  pull-requests: write
+
+jobs:
+  deploy:
+    if: github.event_name != 'pull_request_target' || github.event.pull_request.head.repo.full_name == github.repository
+    # The latest run wins: every run builds all versions. Set on the job, not the workflow, so a skipped run
+    # (a fork's pull request) can't cancel a deploy in flight.
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # Every run publishes main, so every run checks main first: a broken main is never published.
+      - name: Check main
+        run: |
+          node --test tools/build-site.test.mjs
+          if [ -f tools/check-imports.mjs ]; then node tools/check-imports.mjs; fi
+
+      # Same-repository pull requests only, filtered before any limit so forks can't crowd real ones out.
+      - name: Collect open pull requests from this repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls?state=open&sort=created&direction=desc&per_page=100" \
+            --jq '.[] | select(.head.repo != null and .head.repo.full_name == "'"${GITHUB_REPOSITORY}"'") | {number, title, isDraft: .draft, ref: ("refs/previews/pr-" + (.number | tostring))}' \
+            | jq -s '.[:40]' > previews.json
+          for number in $(jq -r '.[].number' previews.json); do
+            git fetch --no-tags --depth=1 origin "pull/${number}/head:refs/previews/pr-${number}" || echo "::warning::Could not fetch pull request ${number}; it is left out."
+          done
+
+      - name: Build the site
+        run: node tools/build-site.mjs --out _site --main HEAD --previews previews.json --repo "${{ github.repository }}" --summary build-summary.json
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+
+      # After every successful deploy, whatever started the run: creates or updates the one marked comment on
+      # each open pull request in the build summary (written by the script on main; no pull request code runs).
+      - name: Comment on the open pull requests
+        uses: actions/github-script@v9
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- playbook-preview -->';
+            const base = process.env.PAGE_URL;
+            const { owner, repo } = context.repo;
+            const summary = JSON.parse(fs.readFileSync('build-summary.json', 'utf8'));
+            const bodyFor = (result) => {
+              if (result.status === 'built') {
+                return `${marker}\n**Preview:** ${base}preview/pr-${result.number}/\n\nBuilt from \`${result.sha}\`. It keeps its own saved drills, separate from the live app, and doesn't work offline. It is removed when this pull request is closed or merged.`;
+              }
+              if (result.status === 'over-cap') {
+                return `${marker}\n**No preview:** ${result.reason}. It gets one when an older pull request is closed.`;
+              }
+              return `${marker}\n**No preview:** ${result.reason}.`;
+            };
+            for (const result of summary.results) {
+              try {
+                const body = bodyFor(result);
+                const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: result.number });
+                const existing = comments.find((c) => c.user && c.user.login === 'github-actions[bot]' && c.body && c.body.startsWith(marker));
+                if (!existing) await github.rest.issues.createComment({ owner, repo, issue_number: result.number, body });
+                else if (existing.body !== body) await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+              } catch (error) {
+                // one pull request that can't be commented on (locked, say) must not stop the others
+                core.warning(`Could not comment on pull request ${result.number}: ${error.message}`);
+              }
+            }

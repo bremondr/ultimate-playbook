@@ -1,0 +1,33 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Site build
+        run: node --test tools/build-site.test.mjs
+
+      - name: Import layers
+        run: if [ -f tools/check-imports.mjs ]; then node tools/check-imports.mjs; else echo "No tools/check-imports.mjs on this branch."; fi
+
+      # Headless Chrome is already on the runner (/usr/bin/google-chrome); only the Python package is needed.
+      - name: Regression check
+        run: |
+          if [ ! -f tests/regression.py ]; then echo "No tests/regression.py on this branch."; exit 0; fi
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet playwright
+          .venv/bin/python tests/regression.py
