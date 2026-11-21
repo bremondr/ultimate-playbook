@@ -37,11 +37,13 @@ async function shareLink(){
   const body = serialize({...raw, name: raw.name || 'Untitled drill'});
   return shareBase() + '#d=' + await packDrill(body);
 }
+// Integration point (QR code, js/features/qr.js): announce each new link, or null while there is none.
+const announceLink = url => document.dispatchEvent(new CustomEvent('playbook:share-link', {detail: {url}}));
 async function openShare(){
   const pop = $('#share-pop');
   if (!pop.hidden){ togglePop('#share', '#share-pop'); return; }
   togglePop('#share', '#share-pop');
-  $('#share-status').textContent = ''; $('#share-link').value = 'Making the link…';
+  $('#share-status').textContent = ''; $('#share-link').value = 'Making the link…'; announceLink(null);
   $('#share-what').textContent = current && current.source === 'builtin'
     ? 'Anyone with this link sees this drill on the Ultimate Playbook site.'
     : 'The whole drill is packed into the link itself, so it works without any account or server. Whoever opens it can watch it and save their own copy.';
@@ -49,7 +51,8 @@ async function openShare(){
     const url = await shareLink();
     $('#share-link').value = url || 'This drill can’t be shared.';
     $('#share-native').hidden = !(url && navigator.share && window.top === window);
-  } catch (err){ $('#share-link').value = 'Couldn’t make a link in this browser.'; }
+    announceLink(url);
+  } catch (err){ $('#share-link').value = 'Couldn’t make a link in this browser.'; announceLink(null); }
 }
 $('#share').addEventListener('click', openShare);
 $('#share-copy').addEventListener('click', () => {

@@ -15,6 +15,8 @@ import './editor/step-tab.js';
 import './editor/pieces.js';
 import './editor/pointer.js';
 import './editor/text-fields.js';
+/* features, each self-contained in its own file */
+import './features/qr.js';
 
 /* ---------- keys and window events ---------- */
 document.addEventListener('keydown', e => {

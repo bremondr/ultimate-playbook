@@ -10,7 +10,7 @@ Use the GitHub Pages site for this repository, or serve this folder locally (`py
 - Tap the field to play the next step and stop at its end. The play button runs the whole thing.
 - The caption under the field shows the current step's coaching note and throw.
 - ⓘ shows the summary. The options button sets speed, pausing after each step, looping, arrows and defense.
-- The share button gives a link to the drill. Built-in drills link by name; drills you drew are packed into the link itself, so it works without any server or account. Whoever opens it can watch it and tap **Save to my drills**.
+- The share button gives a link to the drill. Built-in drills link by name; drills you drew are packed into the link itself, so it works without any server or account. Whoever opens it can watch it and tap **Save to my drills**. The share panel also shows the link as a QR code for players to scan at practice; tap it, or **Show QR code larger**, to fill the screen with it. Very long drawn drills can be too long for a QR code; then send the link instead.
 - The field always runs along the longer side of the screen. The offense attacks toward the pink end zone ("Score here").
 
 Built in: vertical stack, horizontal stack, dump & swing, go-to drill, box drill, angel drill, and the angel drill with a fake and cut back.
