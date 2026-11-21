@@ -2,7 +2,7 @@
 import { currentFacing, edModel, edPos, renderEditor } from './canvas.js';
 import { hint } from './hint.js';
 import { commit } from './history.js';
-import { nearestAttacker, nextLabel, removePiece } from './pieces.js';
+import { nearestAttacker, nextLabel, removePiece, usedLabels } from './pieces.js';
 import { draft, es, labelOf, selIds, selPlayers, setSelIds, snapPt } from './session.js';
 import { setTab } from './tabs.js';
 import { FORCES, personOffset, uniqueId } from '../model/formation.js';
@@ -90,11 +90,11 @@ export function deleteSelection(){
 }
 $('#sel-dup').addEventListener('click', () => {
   const ps = selPlayers(); if (!ps.length) return;
-  const before = JSON.stringify(draft), map = {};
+  const before = JSON.stringify(draft), map = {}, used = usedLabels();
   ps.forEach(p => { map[p.id] = newPid(); });
   const copies = ps.map(p => {
     const c = {id:map[p.id], team:p.team};
-    if (p.team === 'O') c.label = nextLabel();
+    if (p.team === 'O'){ c.label = nextLabel(p.label, used); used.add(c.label); }   // a copy of A4 is A5, or the next free A number
     if (p.follow && map[p.follow]){ c.follow = map[p.follow]; c.offset = p.offset.slice(); c.lag = p.lag; }
     else { const at = edPos(p.id); c.at = snapPt([at[0] + 3, at[1] + 3]); }
     if (p.face) c.face = p.face;

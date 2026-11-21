@@ -3,7 +3,7 @@ import { placeOrPick, ADDED_TO_SETUP } from './place.js';
 import { $ } from '../../util.js';
 
 // tool option, shared with the Group tool: attacker labels can start with a letter or two
-export const labelPrefix = () => $('#g-prefix').value.trim().slice(0, 2);
+export const labelPrefix = () => $('#g-prefix').value.trim().slice(0, 3);
 
 export default {
   id: 'off', key: 'o',

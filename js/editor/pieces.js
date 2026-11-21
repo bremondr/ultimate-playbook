@@ -1,13 +1,13 @@
 /* ---------- adding and removing players and cones ---------- */
 import { edModel, edPos } from './canvas.js';
 import { deselect, draft } from './session.js';
+import { nextFreeLabel } from '../model/labels.js';
 import { pos } from '../model/motion.js';
 import { f2, newPid, r2 } from '../util.js';
 
-export function nextLabel(prefix = ''){
-  const used = new Set(draft.players.filter(p => p.team === 'O').map(p => p.label)); let n = 1;
-  while (used.has((prefix + n).slice(0, 3))) n++; return (prefix + n).slice(0, 3);
-}
+export const usedLabels = () => new Set(draft.players.filter(p => p.team === 'O').map(p => p.label));
+/* the next free label for a new attacker (see nextFreeLabel); '?' once that start has no room left */
+export function nextLabel(start = '', used = usedLabels()){ return nextFreeLabel(used, start) ?? '?'; }
 export function nearestAttacker(at){
   let best = null, bd = 6;
   draft.players.forEach(p => { if (p.team !== 'O' || !p.at || draft.players.some(q => q.follow === p.id)) return;

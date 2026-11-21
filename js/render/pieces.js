@@ -1,5 +1,6 @@
 /* ---------- players, cones, throws, fakes and the disc ---------- */
 import { faceTarget } from '../model/facing.js';
+import { labelSize } from '../model/labels.js';
 import { fakeDir, hand } from '../model/motion.js';
 import { GRIP_TAG } from '../model/throws.js';
 import { dPath, el, M } from './svg.js';
@@ -35,7 +36,7 @@ export function makePlayer(p, parent, attrs = {}){
     el('circle',{r:1.95,fill:'none',stroke:'var(--chalk)','stroke-width':.2,'stroke-dasharray':'.5 .35',class:'ring',opacity:0},grp);
     el('circle',{r:1.3,fill:'var(--off)',stroke:'rgba(0,0,0,.35)','stroke-width':.14},grp);
     const label = p.label ?? p.id;
-    const tx = el('text',{'text-anchor':'middle','dominant-baseline':'central','font-size':label.length>1?1.2:1.45,'font-weight':700,fill:'var(--off-ink)',y:.05},grp);
+    const tx = el('text',{'text-anchor':'middle','dominant-baseline':'central','font-size':labelSize(label),'font-weight':700,fill:'var(--off-ink)',y:.05},grp);
     tx.textContent = label;
   } else {
     // defender seen from above: arms spread across, a point toward where they face (local +x)

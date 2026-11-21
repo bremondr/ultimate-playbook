@@ -3,6 +3,7 @@ import { fieldOf } from './data/fields.js';
 import { emit } from './events.js';
 import { setTeam, team } from './library.js';
 import { FACES } from './model/facing.js';
+import { MAX_LABEL } from './model/labels.js';
 import { FORCES } from './model/formation.js';
 import { curveOf, GRIPS, THROW_TYPES, typeOf } from './model/throws.js';
 import { timeDraft } from './model/timing.js';
@@ -38,7 +39,7 @@ export function readRaw(o){
   const players = (Array.isArray(o.players) ? o.players : []).slice(0, 80).map(p => {
     if (!p || typeof p.id !== 'string' || !/^[\w.-]{1,24}$/.test(p.id) || !['O','D','cone'].includes(p.team)) return null;
     const r = {id:p.id, team:p.team, at:pt(p.at)};
-    if (p.team === 'O') r.label = str(p.label, 3) || '?';
+    if (p.team === 'O') r.label = str(p.label, MAX_LABEL) || '?';
     if (p.team === 'D' && typeof p.follow === 'string' && Array.isArray(p.offset) && num(p.offset[0]) && num(p.offset[1])){
       r.follow = p.follow; r.offset = [clamp(p.offset[0],-20,20), clamp(p.offset[1],-20,20)]; r.lag = num(p.lag) ? clamp(p.lag,0,2) : .35; }
     if (p.team === 'D' && FACES.includes(p.face) && p.face !== 'auto') r.face = p.face;

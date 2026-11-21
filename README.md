@@ -21,6 +21,7 @@ Built in: vertical stack, horizontal stack, dump & swing, go-to drill, box drill
 **Draw a new drill** opens the full-screen editor, starting from a blank field or from a copy of any built-in or saved drill. **Edit a copy** on a drill does the same for the one you're watching, and the Drill tab can also copy another drill in.
 
 - **Tools** (left rail): Select, Offense, Defense, Group, Cone, Throw, Erase, and Multi for multi-select. Tools with options open them beside the tool.
+- **Attacker labels** count 1, 2, 3 … 9, 10. The Offense and Group options take a start: `H` gives H1, H2 …, and `A10` starts at A10. Duplicate continues the copied player's numbering (a copy of A4 is A5). A label can be up to 4 characters.
 - **Setup** is where everyone starts. Each **step** holds runs and at most one throw. Timing is automatic: the receiver and the disc reach the catch point together.
 - **Throws**: type (backhand, forehand, hammer, scoober, thumber, blade, push pass), flight (straight or bent), and an optional pump fake.
 - **Defense**: a defender can be free, follow an attacker, or mark: each player in a row, only the handler spot, or whoever has the disc. Each mark has a force (left, straight up, right). Facing can follow their player, watch the disc, or be fixed with the rotate handle.
@@ -70,9 +71,10 @@ data → model → render → services (library, storage, share) → UI (player,
 
 ## Development
 
-There is nothing to build. Two checks:
+There is nothing to build. Three checks:
 
 - `node tools/check-imports.mjs` checks that the modules have no import cycles and that every import points down the layers. Plain Node, no packages.
+- `node --test tools/*.test.mjs tests/*.test.mjs` runs the unit tests: attacker labels (`tests/labels.test.mjs`) and the site build for previews (`tools/build-site.test.mjs`). Plain Node.
 - `python3 tests/regression.py` serves the folder with `python3 -m http.server`, opens it in headless Chrome with Python Playwright, and checks that there are no page or console errors, the main player and editor flows on an iPad-sized and a phone-sized screen, saving to a mocked team store (as when the page runs as a Claude artifact), and the model output of every built-in drill against `tests/baseline.json`. It needs Python Playwright and Chrome at `/usr/bin/google-chrome`. After a deliberate change to the model, rewrite the baseline with `--update-baseline`. `--trace FILE` and `--shots DIR` record what each step showed, to compare two versions (`--root DIR` serves another copy of the app).
 
 ## Previews of pull requests
