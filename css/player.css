@@ -38,7 +38,8 @@ body:not(.editing) #field{cursor:pointer}
 .no-def .dteam{display:none}
 
 .vfoot{display:flex;flex-direction:column;gap:10px;padding:10px 16px 12px;border-top:1px solid var(--rule);background:var(--surface)}
-.cap{height:112px;overflow-y:auto}   /* fixed, so the field keeps its size from step to step */
+.cap{max-height:35vh;overflow-y:auto}   /* height set by fitCaption() in player.js: the longest step's caption, so the field keeps its size */
+.cap p:empty,.cap small:empty{display:none}
 .capline{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 .capline b{font-family:var(--display);font-weight:700;font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);white-space:nowrap}
 .capline span{font-weight:600;font-size:17px}
@@ -98,7 +99,6 @@ body:not(.editing) #field{cursor:pointer}
   .vtitle h2{font-size:19px}
   .vfoot{padding:8px 12px 10px}
   .cap p{font-size:14px}
-  .cap{height:124px}
   .stepdots button{font-size:0;padding:0;min-height:14px;border-radius:5px}
   .transport-row{gap:10px}
   .time{display:none}

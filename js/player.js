@@ -68,11 +68,27 @@ function render(){
 }
 function updateStepClasses(i){
   stepEls.forEach((li,k) => { li.classList.toggle('now', k===i); li.classList.toggle('done', k<i); li.setAttribute('aria-current', k===i ? 'step' : 'false'); });
+  fillCaption(i);
+}
+function fillCaption(i){
   const s = model.play.steps[i];
   $('#cap-n').textContent = `Step ${i+1} of ${model.play.steps.length}`;
   $('#cap-title').textContent = s.title;
   $('#cap-note').textContent = s.note || '';
   $('#cap-meta').textContent = s.throw ? `Throw ${labelIn(model.play, s.throw.from)} → ${labelIn(model.play, s.throw.to)}: ${throwText(s.throw)}` : '';
+}
+/* The caption is as tall as this drill's longest step caption needs, at the current width and text size: the field
+   keeps one size from step to step, and short captions (a drawn drill without notes) leave no empty band under it.
+   Measured again when the drill changes, the window resizes and presentation mode starts or ends. */
+export function fitCaption(){
+  const cap = $('.cap');
+  if (!model || !cap.offsetParent) return;
+  const parts = ['#cap-n', '#cap-title', '#cap-note', '#cap-meta'].map(s => $(s)), shown = parts.map(e => e.textContent);
+  cap.style.height = 'auto';
+  let h = 0;
+  model.play.steps.forEach((s, k) => { fillCaption(k); h = Math.max(h, cap.scrollHeight); });
+  parts.forEach((e, k) => { e.textContent = shown[k]; });
+  cap.style.height = Math.ceil(h) + 'px';
 }
 
 export function select(id){
@@ -108,7 +124,7 @@ export function showPlay(play, meta){
     li.appendChild(b); ol.appendChild(li); return b;
   });
   updateAct();
-  drawPitch(play.view); buildPieces(); render();
+  drawPitch(play.view); buildPieces(); render(); fitCaption();
 }
 function labelIn(play, id){ const p = play.players.find(q => q.id === id); return p ? (p.label || p.id) : id; }
 export function updateAct(){
@@ -203,10 +219,15 @@ $('#speed').addEventListener('click', e => { const b = e.target.closest('button'
 $('#t-arrows').addEventListener('change', () => { lastStep = -1; render(); save(); });
 $('#t-def').addEventListener('change', e => { svg.classList.toggle('no-def', !e.target.checked); save(); });
 ['#t-pause','#t-loop'].forEach(s => $(s).addEventListener('change', save));
+let fitQueued = false;
 addEventListener('resize', () => {
-  if (screenOrient() === orient || mode === 'edit') return;   // the editor handles its own resizing
+  if (mode === 'edit') return;   // the editor handles its own resizing
+  if (!fitQueued){ fitQueued = true; requestAnimationFrame(() => { fitQueued = false; fitCaption(); }); }
+  if (screenOrient() === orient) return;
   setOrient(screenOrient()); drawPitch(model.play.view); buildPieces(); lastStep = -1; render();
 });
+// the display font changes the caption's height once it has loaded
+if (document.fonts) document.fonts.ready.then(() => fitCaption());
 
 /* ---------- after the saved drills (re)load ----------
    Show the saved drill a link asked for, or refresh the saved drill on screen if it changed or was deleted. */

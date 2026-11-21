@@ -1,11 +1,11 @@
-/* ---------- presentation mode: only the field and a large step caption, for showing drills to the team ----------
+/* ---------- presentation mode: the key, the field and a large step caption, for showing drills to the team ----------
    Tap the field to play one step (the player's own tap handler); "Step back" or ← goes back a step;
    "Exit" or Escape leaves. Uses the Fullscreen API when the browser allows it (iPad Safari only partly does,
    and an embedded page may be refused): then the in-page layout alone is used. Keeps the screen awake
    with a wake lock where there is one. The field keeps running along the longer side of the screen:
    the player redraws it when the screen turns. */
 import { closePops, openDrawer } from '../nav.js';
-import { playing, setPlaying, stepNav } from '../player.js';
+import { fitCaption, playing, setPlaying, stepNav } from '../player.js';
 import { mode } from '../render/view.js';
 import { $ } from '../util.js';
 
@@ -35,6 +35,7 @@ export async function present(enter){
   document.body.classList.toggle('presenting', on);
   $('#pres-ctl').hidden = !on;
   $('#present').setAttribute('aria-pressed', on ? 'true' : 'false');
+  fitCaption();   // the caption's text is larger here
   if (on){
     closePops(); openDrawer(false);
     $('#pres-back').focus({preventScroll: true});
