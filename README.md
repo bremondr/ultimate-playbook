@@ -11,6 +11,7 @@ Use the GitHub Pages site for this repository, or serve this folder locally (`py
 - The caption under the field shows the current step's coaching note and throw.
 - ⓘ shows the summary. The options button sets speed, pausing after each step, looping, arrows and defense.
 - The share button gives a link to the drill. Built-in drills link by name; drills you drew are packed into the link itself, so it works without any server or account. Whoever opens it can watch it and tap **Save to my drills**. The share panel also shows the link as a QR code for players to scan at practice; tap it, or **Show QR code larger**, to fill the screen with it. Very long drawn drills can be too long for a QR code; then send the link instead.
+- The present button (a screen with a play mark, in the top bar on the iPad and wider screens) shows only the field and a large step caption, full screen where the browser allows it, and keeps the screen awake. Tap the field for the next step, **Step back** (or ←) to go back, and **Exit** (or Escape) to leave. iPad Safari doesn't always allow full screen; the app then uses the same layout inside the page. Added to the home screen, the app already fills the screen.
 - The field always runs along the longer side of the screen. The offense attacks toward the pink end zone ("Score here").
 
 Built in: vertical stack, horizontal stack, dump & swing, go-to drill, box drill, angel drill, and the angel drill with a fake and cut back.
@@ -41,7 +42,7 @@ Plain HTML, CSS and JavaScript modules: no build step and no dependencies. Becau
 - `js/model/`: the logic, no drawing. `compile.js` turns a play into timed runs and throws, `motion.js` gives where every player and the disc are at a moment (including marks), `timing.js` times a drawn drill automatically, `throws.js` (throw types and grips), `formation.js` (formations and person defense), `facing.js` (where a defender looks).
 - `js/render/`: SVG drawing. `svg.js` (field-to-screen mapping), `pitch.js` (the field), `pieces.js` (players, cones, throws, fakes, the disc), `thumb.js` (formation previews).
 - `js/player.js` (playback), `js/nav.js` (drill list, popovers, new-drill chooser), `js/library.js` (built-in plus saved drills), `js/storage.js` (saving in this browser, or the shared team store when the page runs as a Claude artifact), `js/share.js` (links with the drill packed in).
-- `js/features/`: self-contained features, each wired in at a few commented points. `qr.js` (QR code encoder and the QR code in the share panel), `backup.js` (back up and restore drills as a `.json` file).
+- `js/features/`: self-contained features, each wired in at a few commented points. `qr.js` (QR code encoder and the QR code in the share panel), `backup.js` (back up and restore drills as a `.json` file), `present.js` (presentation mode). Their styles are in `css/features.css`.
 - `js/editor/`: the drill editor. `studio.js` (open, close, save, zoom), `canvas.js` (drawing the draft, step strip, hints), `pointer.js` (taps and drags on the field), `tools.js` (tool rail, tabs, tool options), `selection.js` (Selected tab), `step-tab.js` (Step tab and throws), `drill-tab.js` (Drill tab and formations), `pieces.js` (adding and removing players, the Group tool), `history.js` (undo and redo), `text-fields.js`, `keys.js`, `drafts.js` (blank drafts and copies).
 
 ## To do
