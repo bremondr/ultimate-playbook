@@ -45,6 +45,7 @@ Nothing to do by hand. `sw.js` serves the stored files first, so people get a ch
 
 Plain HTML, CSS and JavaScript modules: no build step and no dependencies. Because the scripts are ES modules, open the page through a web server (GitHub Pages, or `python3 -m http.server` in this folder), not straight from the file system.
 
+- `CLAUDE.md`: how to work on this repository with Claude Code (ground rules, checks, workflow).
 - `index.html`: markup only. It loads the stylesheets and `js/main.js`.
 - `manifest.webmanifest`, `icons/`, `sw.js`, `js/pwa.js`: installing on the home screen and working offline. `js/pwa.js` registers the service worker.
 - `css/`: `tokens.css` (colours, fonts, dark mode), `base.css`, `player.css` (playback screen and drill list), `shared.css` (buttons and form bits), `studio.css` (the editor).
@@ -76,7 +77,7 @@ There is nothing to build. Three checks:
 
 - `node tools/check-imports.mjs` checks that the modules have no import cycles and that every import points down the layers. Plain Node, no packages.
 - `node --test tools/*.test.mjs tests/*.test.mjs` runs the unit tests: attacker labels (`tests/labels.test.mjs`) and the site build for previews (`tools/build-site.test.mjs`). Plain Node.
-- `python3 tests/regression.py` serves the folder with `python3 -m http.server`, opens it in headless Chrome with Python Playwright, and checks that there are no page or console errors, the main player and editor flows on an iPad-sized and a phone-sized screen, saving to a mocked team store (as when the page runs as a Claude artifact), and the model output of every built-in drill against `tests/baseline.json`. It needs Python Playwright and Chrome at `/usr/bin/google-chrome`. After a deliberate change to the model, rewrite the baseline with `--update-baseline`. `--trace FILE` and `--shots DIR` record what each step showed, to compare two versions (`--root DIR` serves another copy of the app).
+- `python3 tests/regression.py` serves the folder with `python3 -m http.server`, opens it in headless Chrome with Python Playwright, and checks that there are no page or console errors, the main player and editor flows on an iPad-sized and a phone-sized screen, saving to a mocked team store (as when the page runs as a Claude artifact), and the model output of every built-in drill against `tests/baseline.json`. It needs Python Playwright (`pip install playwright`) and a Chrome: `CHROME_PATH` if set, else `/usr/bin/google-chrome` (as in CI), else Playwright's own Chromium (`python -m playwright install chromium`, the easy way on Windows and macOS). After a deliberate change to the model, rewrite the baseline with `--update-baseline`. `--trace FILE` and `--shots DIR` record what each step showed, to compare two versions (`--root DIR` serves another copy of the app).
 
 ## Previews of pull requests
 

@@ -13,11 +13,14 @@ Serves the folder with `python3 -m http.server`, opens it in headless Chrome (Py
 --root serves another copy of the app (for example an older version), --trace writes what each step of the flows
 showed to a JSON file, and --shots saves screenshots, so two versions can be compared.
 """
-import argparse, json, pathlib, socket, subprocess, sys, time, urllib.request
+import argparse, json, os, pathlib, socket, subprocess, sys, time, urllib.request
 from playwright.sync_api import sync_playwright
 
 HERE = pathlib.Path(__file__).resolve().parent
 BASELINE = HERE / 'baseline.json'
+# Chrome to test with: CHROME_PATH if set, else Chrome where Linux CI has it, else Playwright's own Chromium
+# (python -m playwright install chromium), which is how it runs on Windows and macOS.
+CHROME = os.environ.get('CHROME_PATH') or ('/usr/bin/google-chrome' if os.path.exists('/usr/bin/google-chrome') else None)
 VIEWPORTS = {'ipad': (1180, 820), 'phone': (390, 844)}
 
 # Same random ids and clock on every run, so the traces of two versions can be compared line by line.
@@ -317,7 +320,7 @@ def main():
     failures, trace = [], ([] if args.trace else None)
     try:
         with sync_playwright() as pw:
-            browser = pw.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--no-sandbox'])
+            browser = pw.chromium.launch(executable_path=CHROME, args=['--no-sandbox'])
 
             def page_for(name, size, *scripts):
                 ctx = browser.new_context(viewport={'width': size[0], 'height': size[1]})
