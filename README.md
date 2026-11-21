@@ -34,18 +34,33 @@ Plain HTML, CSS and JavaScript modules: no build step and no dependencies. Becau
 
 - `index.html`: markup only. It loads the stylesheets and `js/main.js`.
 - `css/`: `tokens.css` (colours, fonts, dark mode), `base.css`, `player.css` (playback screen and drill list), `shared.css` (buttons and form bits), `studio.css` (the editor).
-- `js/main.js`: boot. Loads the other modules, keyboard and window events, then shows the drill named in the link.
-- `js/state.js`: the shared state (current field and orientation, the drill on screen, saved drills, the editor's draft and selection). Other modules read it directly and change it with `put`, for example `put.draft(d)`.
-- `js/util.js`: small helpers (rounding, ids, `$`).
-- `js/data/`: plain data. `fields.js` (field sizes), `builtins.js` (the built-in plays and drills), `angel.js` (the two angel drills), `formations.js` (the formations offered in the editor).
-- `js/model/`: the logic, no drawing. `compile.js` turns a play into timed runs and throws, `motion.js` gives where every player and the disc are at a moment (including marks), `timing.js` times a drawn drill automatically, `throws.js` (throw types and grips), `formation.js` (formations and person defense), `facing.js` (where a defender looks).
-- `js/render/`: SVG drawing. `svg.js` (field-to-screen mapping), `pitch.js` (the field), `pieces.js` (players, cones, throws, fakes, the disc), `thumb.js` (formation previews).
-- `js/player.js` (playback), `js/nav.js` (drill list, popovers, new-drill chooser), `js/library.js` (built-in plus saved drills), `js/storage.js` (saving in this browser, or the shared team store when the page runs as a Claude artifact), `js/share.js` (links with the drill packed in).
-- `js/editor/`: the drill editor. `studio.js` (open, close, save, zoom), `canvas.js` (drawing the draft, step strip, hints), `pointer.js` (taps and drags on the field), `tools.js` (tool rail, tabs, tool options), `selection.js` (Selected tab), `step-tab.js` (Step tab and throws), `drill-tab.js` (Drill tab and formations), `pieces.js` (adding and removing players, the Group tool), `history.js` (undo and redo), `text-fields.js`, `keys.js`, `drafts.js` (blank drafts and copies).
+
+The scripts are in layers. Every import points down the layers (or sideways within one), and imports never go round in a circle:
+
+data → model → render → services (library, storage, share) → UI (player, nav, editor) → `main.js`
+
+- `js/util.js`: small helpers (rounding, ids, `$`, which way the screen is turned). `js/events.js`: the event names and `on`/`emit`; see below.
+- `js/data/`: plain data. `fields.js` (field sizes), `builtins.js` (the hand-timed built-in plays), `angel.js` (the two angel drills, written like drawn drills), `formations.js` (the formations offered in the editor).
+- `js/model/`: the logic, no drawing. `compile.js` turns a play into timed runs and throws, `motion.js` gives where every player and the disc are at a moment (including marks), `timing.js` times a drawn drill automatically, `drafts.js` (blank drafts and copies for the editor), `throws.js` (throw types and grips), `formation.js` (formations and person defense), `facing.js` (where a defender looks).
+- `js/render/`: SVG drawing. `view.js` (which field is drawn, which way it is turned, and whether the player or the editor has it), `svg.js` (field-to-screen mapping), `pitch.js` (the field), `pieces.js` (players, cones, throws, fakes, the disc), `thumb.js` (formation previews).
+- Services: `js/library.js` (built-in plus saved drills; the built-in list is put together the first time it is needed), `js/storage.js` (saving in this browser, or the shared team store when the page runs as a Claude artifact), `js/share.js` (links with the drill packed in).
+- `js/player.js` (playback), `js/nav.js` (drill list, popovers including Share, new-drill chooser).
+- `js/editor/`: the drill editor.
+  - `studio.js` opens, closes, previews, saves and deletes, and wires the editor's events.
+  - `session.js` (the drill being drawn, the step on screen, the tool in hand, the selection), `history.js` (undo and redo), `canvas.js` (drawing the draft and asking where things are), `hint.js` (the hint line), `tabs.js` (the property tabs and the bottom sheet), `viewport.js` (zoom and turning the field).
+  - `tools/`: one module per tool (`select`, `offense`, `defense`, `group`, `cone`, `throw`, `erase`) with its pointer handling, hint text and options; `index.js` lists them. `pointer.js` passes taps and drags on the field to the tool in hand; `rail.js` is the tool rail, the options tray beside it and the tool's hint.
+  - `selection.js` (Selected tab), `step-tab.js` (step strip and Step tab), `drill-tab.js` (Drill tab and formations), `pieces.js` (adding and removing players and cones), `text-fields.js`, `keys.js`.
+
+**State** lives in a few small stores, each owned by the module that changes it: the view (`render/view.js`), the player (`player.js`: the drill on screen, playing or not), the library and the store (`library.js`: saved drills; `storage.js`: where they are saved and whether you may save), and the editing session (`editor/session.js`; the editor's smaller bits of state stay with the module that uses them, such as the undo stacks in `history.js` or the zoom in `viewport.js`). Other modules read their exported values directly (ES modules give them a live, read-only view) and change them only through the functions the owner exports, for example `setField(f)` or `setSelIds(ids)`.
+
+**Events.** When a lower module needs a higher one to react, it calls `emit('name')` instead of importing it: for example the player asks for the editor with `emit('edit', draft)`, and the editor's canvas announces `emit('editor-drawn')` so the panels around the field catch up. The event names are listed in `js/events.js`, and only `main.js` (for the app) and `editor/studio.js` (inside the editor) subscribe, so every reaction is listed in one place.
 
 ## Development
 
-There is nothing to build. `python3 tests/regression.py` serves the folder with `python3 -m http.server`, opens it in headless Chrome with Python Playwright, and checks that there are no page or console errors, the main player and editor flows on an iPad-sized and a phone-sized screen, saving to a mocked team store (as when the page runs as a Claude artifact), and the model output of every built-in drill against `tests/baseline.json`. It needs Python Playwright and Chrome at `/usr/bin/google-chrome`. After a deliberate change to the model, rewrite the baseline with `--update-baseline`. `--trace FILE` and `--shots DIR` record what each step showed, to compare two versions (`--root DIR` serves another copy of the app).
+There is nothing to build. Two checks:
+
+- `node tools/check-imports.mjs` checks that the modules have no import cycles and that every import points down the layers. Plain Node, no packages.
+- `python3 tests/regression.py` serves the folder with `python3 -m http.server`, opens it in headless Chrome with Python Playwright, and checks that there are no page or console errors, the main player and editor flows on an iPad-sized and a phone-sized screen, saving to a mocked team store (as when the page runs as a Claude artifact), and the model output of every built-in drill against `tests/baseline.json`. It needs Python Playwright and Chrome at `/usr/bin/google-chrome`. After a deliberate change to the model, rewrite the baseline with `--update-baseline`. `--trace FILE` and `--shots DIR` record what each step showed, to compare two versions (`--root DIR` serves another copy of the app).
 
 ## To do
 

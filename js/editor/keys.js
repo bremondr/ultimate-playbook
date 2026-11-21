@@ -1,10 +1,12 @@
 /* ---------- keyboard in the editor ---------- */
 import { renderEditor } from './canvas.js';
-import { snapPt } from './drafts.js';
+import { clearHint } from './hint.js';
 import { commit, redo, undo } from './history.js';
+import { pickToolByKey } from './rail.js';
 import { deleteSelection, setSel } from './selection.js';
-import { setTool, TOOL_KEYS } from './tools.js';
-import { draft, es, flyOpen, orient, put, selIds, tool } from '../state.js';
+import { draft, es, selIds, setPendingThrow, setSelIds, snapPt } from './session.js';
+import { TOOL_KEYS } from './tools/index.js';
+import { orient } from '../render/view.js';
 import { $, r2 } from '../util.js';
 
 export function editorKeys(e){
@@ -16,7 +18,7 @@ export function editorKeys(e){
   if (typing) return;
   if (mod && k === 'a'){ e.preventDefault(); setSel(draft.players.map(p => p.id)); renderEditor(); return; }
   if (k === 'delete' || k === 'backspace'){ if (selIds.size){ e.preventDefault(); deleteSelection(); } return; }
-  if (k === 'escape'){ put.pendingThrow(null); put.selIds(new Set()); put.hintMsg(null); renderEditor(); return; }
+  if (k === 'escape'){ setPendingThrow(null); setSelIds([]); clearHint(); renderEditor(); return; }
   if (e.key.startsWith('Arrow') && selIds.size && es < 0){
     e.preventDefault();
     const st = e.shiftKey ? 2 : .5, d = {ArrowLeft:[-st,0], ArrowRight:[st,0], ArrowUp:[0,-st], ArrowDown:[0,st]}[e.key];
@@ -29,5 +31,5 @@ export function editorKeys(e){
     });
     commit(before); renderEditor(); return;
   }
-  if (!mod && !e.altKey && TOOL_KEYS[k]){ put.flyOpen(TOOL_KEYS[k] !== tool || !flyOpen); setTool(TOOL_KEYS[k]); }
+  if (!mod && !e.altKey && TOOL_KEYS[k]) pickToolByKey(TOOL_KEYS[k]);
 }

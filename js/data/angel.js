@@ -1,6 +1,5 @@
-import { timeDraft } from '../model/timing.js';
-
-/* Angel drill: two lines 13 m apart facing the attacked end zone. Drawn as a raw drill and timed automatically.
+/* Angel drill: two lines 13 m apart facing the attacked end zone. Written as a raw drill, like one drawn in the
+   editor; library.js times it automatically. Its chips replace the automatic ones.
    variant 'basic': straight throw upline to the diagonal cut.
    variant 'break': the thrower pump-fakes upline; the cutter plants and cuts back toward the side they came from, and the
    thrower bends the disc there. The thrower then cuts downfield on their own side, level with the catcher, for the horizontal pass. */
@@ -39,12 +38,10 @@ export function angelDrill(variant = 'basic'){
     {title:'Reverse: return', note:'A2 gives the disc back to the front of line B and joins the back of line B. B2 joins the back of line A. The next pair starts again from line B.',
       moves:{A2:mv([[X-2, B+4], [slot(3), B]]), B2:mv([[X-2, A-4], [slot(3), A]])}, throw:S('A2','B3')}
   );
-  const play = timeDraft({id: brk ? 'angel-cutback' : 'angel', kind:'Drill', name: brk ? 'Angel drill: fake & cut back' : 'Angel drill', disc:'B1', field:'full', format:7,
+  return {id: brk ? 'angel-cutback' : 'angel', kind:'Drill', name: brk ? 'Angel drill: fake & cut back' : 'Angel drill', disc:'B1', field:'full', format:7,
     summary: brk
       ? 'Angel drill with a fake. The thrower shows the straight upline throw, the diagonal cutter plants and cuts back toward the side they started from, and the thrower bends the disc there. Then the horizontal pass and the return to the line.'
       : 'Two lines facing the end zone. A diagonal cut takes a straight throw in front of the other line, the thrower cuts across for a horizontal pass, then gives the disc back to the line. Repeats in the other direction with the next pair.',
-    players, steps});
-  delete play.autoDurs;
-  play.chips = brk ? [['Players','8+'],['Lines','2, 13 m apart'],['Fake','upline'],['Throws','bent, straight, straight']] : [['Players','8+'],['Lines','2, 13 m apart'],['Throws','3 per rep']];
-  return play;
+    players, steps,
+    chips: brk ? [['Players','8+'],['Lines','2, 13 m apart'],['Fake','upline'],['Throws','bent, straight, straight']] : [['Players','8+'],['Lines','2, 13 m apart'],['Throws','3 per rep']]};
 }

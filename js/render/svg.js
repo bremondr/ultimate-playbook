@@ -1,5 +1,5 @@
 /* ---------- drawing helpers ---------- */
-import { orient } from '../state.js';
+import { orient } from './view.js';
 import { $, f2 } from '../util.js';
 
 const NS = 'http://www.w3.org/2000/svg';

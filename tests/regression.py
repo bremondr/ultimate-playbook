@@ -44,12 +44,12 @@ MOCK_CLAUDE = """(() => {
 # Everything the model computes for the built-in drills, sampled every 0.2 s.
 MODEL_DUMP = """async base => {
   const imp = p => import(base + p);
-  const {BUILTIN} = await imp('js/data/builtins.js'), builtins = () => BUILTIN;
+  const {builtins} = await imp('js/library.js');
   const {compile} = await imp('js/model/compile.js');
   const {discAt, facingDef, markTargetAt, pos, stepAt} = await imp('js/model/motion.js');
   const {faceTarget} = await imp('js/model/facing.js');
   const {timeDraft} = await imp('js/model/timing.js');
-  const {copyOfBuiltin} = await imp('js/editor/drafts.js');
+  const {copyOfBuiltin} = await imp('js/model/drafts.js');
   const {readRaw, serialize} = await imp('js/storage.js');
   const r = v => Math.round(v*1000)/1000, pt = q => q && [r(q[0]), r(q[1])];
   const out = {};

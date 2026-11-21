@@ -1,7 +1,7 @@
-import { renderEditor, renderStrip } from './canvas.js';
+import { renderEditor } from './canvas.js';
 import { commit, updateState } from './history.js';
-import { selPlayers } from './selection.js';
-import { draft, es, put } from '../state.js';
+import { draft, es, selPlayers, setDirty } from './session.js';
+import { renderStrip } from './step-tab.js';
 import { $ } from '../util.js';
 
 /* text inputs: one undo entry per edit, not per keystroke */
@@ -9,7 +9,7 @@ let typingBefore = null;
 function textField(sel_, apply, after){
   const inp = $(sel_);
   inp.addEventListener('focus', () => { typingBefore = JSON.stringify(draft); });
-  inp.addEventListener('input', () => { if (!draft) return; apply(inp.value); put.dirty(true); updateState(); if (after) after(); });
+  inp.addEventListener('input', () => { if (!draft) return; apply(inp.value); setDirty(true); updateState(); if (after) after(); });
   inp.addEventListener('change', () => { if (typingBefore) commit(typingBefore); typingBefore = JSON.stringify(draft); });
 }
 textField('#s-name', v => { draft.name = v; });

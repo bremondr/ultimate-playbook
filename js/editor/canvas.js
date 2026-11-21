@@ -1,23 +1,34 @@
-/* ---------- the field while editing: pieces, runs, throws, handles; the step strip and the hint line ---------- */
-import { commit } from './history.js';
-import { currentFacing, isSel, renderSelPanel } from './selection.js';
-import { refreshDiscSelect, refreshStepExtras, refreshThrowPanel } from './step-tab.js';
-import { setStep, setTool } from './tools.js';
+/* ---------- the field while editing: pieces, runs, throws, handles ----------
+   renderEditor() times and compiles the draft, draws it, then announces 'editor-drawn' so the panels around the
+   field (step strip, hint line, tabs) catch up. Anything that changes the draft just calls renderEditor(). */
+import { draft, es, isSel, pendingThrow, selIds } from './session.js';
+import { emit } from '../events.js';
+import { faceTarget } from '../model/facing.js';
 import { compile } from '../model/compile.js';
 import { bez, discAt, facingDef, hand, markTargetAt, pos } from '../model/motion.js';
 import { timeDraft } from '../model/timing.js';
 import { drawFake, drawThrow, faceAngle, makeCone, makePlayer, placeDisc } from '../render/pieces.js';
 import { dPath, el, M, svg } from '../render/svg.js';
-import { draft, edModel, edPlay, es, hintMsg, pendingThrow, put, selIds, tool } from '../state.js';
 import { $, f2 } from '../util.js';
 
+// the draft timed (edPlay) and compiled (edModel), rebuilt on every redraw
+export let edPlay = null, edModel = null;
+
+/* where things are at the start of the step on screen */
 export function edStart(){ return es < 0 ? 0 : edModel.starts[es]; }
 export function edPos(id){ const p = draft.players.find(q => q.id === id); if (es < 0 && p && !p.follow && !p.mark) return p.at; return pos(edModel, id, edStart()); }
 export function holderAtStep(i){ const d = discAt(edModel, edModel.starts[i]); return d ? d.holder : null; }
-export const labelOf = id => { const p = draft.players.find(q => q.id === id); return p ? (p.team === 'O' ? p.label : p.team === 'D' ? 'Defender' : 'Cone') : '?'; };
+// a step's throw must start with whoever holds the disc when the step starts
+export function stepWarn(i){ const st = draft.steps[i]; return !!(st.throw && holderAtStep(i) !== st.throw.from); }
+// field-coordinate facing (degrees, 0 = downfield) of a defender at the current editor time
+export function currentFacing(p){
+  const self = edPos(p.id), d = discAt(edModel, edStart());
+  const tg = faceTarget(self, facingDef(edModel, p, edStart()), edPos, d ? [d.x, d.y] : null);
+  return Math.round(Math.atan2(tg[1]-self[1], tg[0]-self[0]) * 180/Math.PI);
+}
 
 export function renderEditor(){
-  put.edPlay(timeDraft(draft)); put.edModel(compile(edPlay));
+  edPlay = timeDraft(draft); edModel = compile(edPlay);
   const gp = $('#g-paths'), gc = $('#g-cones'), gpl = $('#g-players'), gh = $('#g-handles');
   [gp, gc, gpl, gh].forEach(g => g.replaceChildren());
   if (es < 0) draft.players.forEach(p => {
@@ -84,49 +95,6 @@ export function renderEditor(){
     }
   }
   if (document.activeElement !== $('#s-name')) $('#s-name').value = draft.name;
-  renderStrip(); renderHint(); refreshStepExtras(); refreshDiscSelect(); renderSelPanel(); refreshThrowPanel();
+  emit('editor-drawn');
   svg.setAttribute('aria-label', `Editing ${draft.name}, ${es < 0 ? 'setup' : 'step ' + (es+1)}`);
 }
-export function stepWarn(i){ const st = draft.steps[i]; return !!(st.throw && holderAtStep(i) !== st.throw.from); }
-export function renderStrip(){
-  const s = $('#strip'); s.replaceChildren();
-  const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = 'Steps'; s.appendChild(lbl);
-  const mk = (text, i, warn, title) => {
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'sbtn'; b.textContent = text; b.title = title || '';
-    b.setAttribute('aria-current', es === i ? 'true' : 'false');
-    if (warn){ const dt = document.createElement('i'); dt.className = 'dot'; b.appendChild(dt); b.title += ' (throw needs fixing)'; }
-    b.addEventListener('click', () => setStep(i)); s.appendChild(b);
-  };
-  mk('Setup', -1, false, 'Starting positions');
-  draft.steps.forEach((st, i) => mk(String(i+1), i, stepWarn(i), edPlay.steps[i].title));
-  const add = document.createElement('button'); add.type = 'button'; add.className = 'sbtn add'; add.textContent = '+ Add step';
-  add.addEventListener('click', () => {
-    const before = JSON.stringify(draft), at = es < 0 ? draft.steps.length : es + 1;
-    draft.steps.splice(at, 0, {title:'', note:'', dur:null, moves:{}, throw:null});
-    commit(before); if (!['select','throw','erase'].includes(tool)) setTool('select');
-    setStep(at);
-  });
-  s.appendChild(add);
-}
-export function renderHint(){
-  const h = $('#hint'); h.classList.remove('warn');
-  if (hintMsg){ h.textContent = hintMsg.text; h.classList.toggle('warn', !!hintMsg.warn); return; }
-  let txt;
-  if (es < 0){
-    txt = {select:'Setup: drag players and cones into place. Drag a box on empty grass to select several, then move them together.',
-      off:'Tap the field to add attackers.', def:'Tap the field to add defenders.', cone:'Tap the field to place cones.',
-      group:'Tap to place a whole group, or drag to spread it along a line.',
-      throw:'Tap the attacker who starts with the disc.', erase:'Tap a player or cone to remove it.'}[tool];
-  } else {
-    const holder = holderAtStep(es);
-    txt = {select:'Drag a player to draw their run. Select several first to give them all the same run. Drag the small dot on a run to add a bend.',
-      off:'New players are added to the setup, so they stand there from the start.', def:'New players are added to the setup, so they stand there from the start.',
-      cone:'Cones are placed for the whole drill.', group:'Groups are added to the setup, so they stand there from the start.',
-      throw: pendingThrow ? 'Now tap the receiver.' : holder ? `Tap ${labelOf(holder)} (has the disc at the start of this step), then the receiver.` : 'Nobody has the disc. Pick who starts with it in Setup.',
-      erase:'Tap a run, a throw, a bend or a player to remove it.'}[tool];
-    if (stepWarn(es)){ h.classList.add('warn'); txt = `${labelOf(draft.steps[es].throw.from)} doesn’t have the disc at the start of this step. Redraw the throw from ${holder ? labelOf(holder) : 'the disc holder'}.`; }
-  }
-  h.textContent = txt;
-}
-export function hint(text, warn){ put.hintMsg({text, warn}); renderHint(); }
-new MutationObserver(() => { const h = $('#hint'); h.title = h.textContent; h.scrollTop = 0; }).observe($('#hint'), {childList:true, characterData:true, subtree:true});

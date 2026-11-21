@@ -1,10 +1,11 @@
-/* ---------- drill list (drawer), popovers, and the new-drill chooser ---------- */
-import { hint } from './editor/canvas.js';
-import { blankDraft, copyOfEntry } from './editor/drafts.js';
-import { backToEditor, openEditor } from './editor/studio.js';
-import { libEntries } from './library.js';
-import { select } from './player.js';
-import { current, dirty, draft, put, storeMode } from './state.js';
+/* ---------- drill list (drawer), popovers (info, options, share), and the new-drill chooser ---------- */
+import { dirty, draft, endSession } from './editor/session.js';
+import { emit } from './events.js';
+import { libEntries, team } from './library.js';
+import { blankDraft, copyOfEntry } from './model/drafts.js';
+import { current, model, select, sharedRaw } from './player.js';
+import { builtinLink, drillLink } from './share.js';
+import { canWrite, storeMode } from './storage.js';
 import { $ } from './util.js';
 
 export function buildNav(){
@@ -26,7 +27,8 @@ export function buildNav(){
       b.append(nm, sm);
       b.setAttribute('aria-current', current && current.id === e.id && current.source !== 'preview' ? 'true' : 'false');
       b.addEventListener('click', () => {
-        if (current?.source === 'preview' && draft){ if (dirty){ backToEditor(); hint('Save the drill you are drawing, or go back to playback and discard it, first.', true); return; } put.draft(null); }
+        // previewing a drill being drawn: keep unsaved work, otherwise let the draft go
+        if (current?.source === 'preview' && draft){ if (dirty){ emit('back-to-editor', 'Save the drill you are drawing, or go back to playback and discard it, first.'); return; } endSession(); }
         openDrawer(false);
         if (location.hash.slice(1) !== e.id) location.hash = e.id; else select(e.id);
       });
@@ -46,13 +48,15 @@ function fillNewPick(){
     const nm = document.createElement('b'); nm.textContent = e.play.name;
     const sm = document.createElement('small'); sm.textContent = `${e.play.kind} · ${e.play.steps.length} step${e.play.steps.length > 1 ? 's' : ''}`;
     b.append(nm, sm);
-    b.addEventListener('click', () => { openDrawer(false); showNewPick(false); openEditor(copyOfEntry(e)); });
+    b.addEventListener('click', () => { openDrawer(false); showNewPick(false); emit('edit', copyOfEntry(e)); });
     li.appendChild(b); ul.appendChild(li);
   });
 }
 function showNewPick(on){ $('#new-pick').hidden = !on; $('#new').setAttribute('aria-expanded', on ? 'true' : 'false'); if (on) fillNewPick(); }
 $('#new').addEventListener('click', () => showNewPick($('#new-pick').hidden));
-$('#new-blank').addEventListener('click', () => { openDrawer(false); showNewPick(false); openEditor(blankDraft()); });
+$('#new-blank').addEventListener('click', () => { openDrawer(false); showNewPick(false); emit('edit', blankDraft()); });
+// viewers without write access to the team store can't draw new drills
+export function showWriteAccess(){ $('#new').hidden = canWrite === false; }
 
 /* ---------- drawer and popovers ---------- */
 export function openDrawer(on){
@@ -72,3 +76,40 @@ $('#scrim').addEventListener('click', () => openDrawer(false));
 $('#info').addEventListener('click', () => togglePop('#info', '#info-pop'));
 $('#opts').addEventListener('click', () => togglePop('#opts', '#opts-pop'));
 document.addEventListener('pointerdown', e => { if (!e.target.closest('.pop, #info, #opts, #share')) closePops(); });
+
+/* ---------- share popover ---------- */
+async function shareLink(){
+  if (!current) return null;
+  if (current.source === 'builtin') return builtinLink(current.id);
+  let raw = null;
+  if (current.source === 'team'){ const e = team.find(x => x.id === current.id); raw = e && e.raw; }
+  else if (current.source === 'preview') raw = draft;
+  else if (current.source === 'shared') raw = sharedRaw;
+  if (!raw) return null;
+  return drillLink(raw);
+}
+async function openShare(){
+  const pop = $('#share-pop');
+  if (!pop.hidden){ togglePop('#share', '#share-pop'); return; }
+  togglePop('#share', '#share-pop');
+  $('#share-status').textContent = ''; $('#share-link').value = 'Making the link…';
+  $('#share-what').textContent = current && current.source === 'builtin'
+    ? 'Anyone with this link sees this drill on the Ultimate Playbook site.'
+    : 'The whole drill is packed into the link itself, so it works without any account or server. Whoever opens it can watch it and save their own copy.';
+  try {
+    const url = await shareLink();
+    $('#share-link').value = url || 'This drill can’t be shared.';
+    $('#share-native').hidden = !(url && navigator.share && window.top === window);
+  } catch (err){ $('#share-link').value = 'Couldn’t make a link in this browser.'; }
+}
+$('#share').addEventListener('click', openShare);
+$('#share-copy').addEventListener('click', () => {
+  const inp = $('#share-link'), url = inp.value;
+  const done = () => { $('#share-status').textContent = 'Link copied.'; };
+  const fallback = () => { inp.focus(); inp.select(); $('#share-status').textContent = 'Press Ctrl+C (or ⌘C) to copy the selected link.'; };
+  try { navigator.clipboard.writeText(url).then(done, fallback); } catch (e){ fallback(); }
+});
+$('#share-native').addEventListener('click', () => {
+  const url = $('#share-link').value;
+  navigator.share({title: model ? model.play.name : 'Ultimate Playbook', url}).catch(() => {});
+});

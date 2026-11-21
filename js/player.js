@@ -1,23 +1,27 @@
 /* ---------- viewer ---------- */
 import { fieldOf } from './data/fields.js';
-import { copyOfBuiltin } from './editor/drafts.js';
-import { backToEditor, openEditor } from './editor/studio.js';
-import { libEntries } from './library.js';
+import { emit } from './events.js';
+import { builtins, libEntries, saveEntry, team } from './library.js';
 import { compile } from './model/compile.js';
+import { copyOfBuiltin, draftOfSaved } from './model/drafts.js';
 import { bez, discAt, facingDef, hand, pos, stepAt } from './model/motion.js';
 import { throwText } from './model/throws.js';
 import { timeDraft } from './model/timing.js';
-import { buildNav, markNav } from './nav.js';
 import { drawFake, drawThrow, faceAngle, makeCone, makePlayer, placeDisc } from './render/pieces.js';
 import { drawPitch } from './render/pitch.js';
 import { dPath, el, M, svg } from './render/svg.js';
-import { openShared } from './share.js';
-import { canWrite, current, mode, model, orient, put, sharedRaw, storeMode, team } from './state.js';
-import { errText, readRaw, saveDrill, serialize } from './storage.js';
-import { $, clone, f2, newDocId, screenOrient } from './util.js';
+import { mode, orient, setField, setOrient } from './render/view.js';
+import { readShared } from './share.js';
+import { canWrite, entryFrom, errText, saveDrill, serialize, storeMode } from './storage.js';
+import { $, f2, newDocId, screenOrient } from './util.js';
 
-let t = 0, speed = 1, lastStep = -1, playerEls = {}, endHold = 0, stepEls = [];
+/* Player state. Other modules read these; only this module changes them. */
+export let current = null;     // what is on screen: {source:'builtin'|'team'|'preview'|'shared', id}
+export let model;              // the compiled drill on screen
 export let playing = false;
+export let sharedRaw = null;   // a drill opened from a #d= link, until it is saved
+let pendingId = null;          // a saved drill the link asked for before the saved drills had loaded
+let t = 0, speed = 1, lastStep = -1, playerEls = {}, endHold = 0, stepEls = [];
 // last drawn facing of each defender, so a defender standing still keeps looking the same way
 const angles = {};
 
@@ -75,16 +79,16 @@ export function select(id){
   if (id && id.startsWith('d=')){ openShared(id.slice(2)); return; }
   const entries = libEntries();
   let e = entries.find(x => x.id === id);
-  if (!e){ if (id && storeMode === 'pending') put.pendingId(id); e = entries[0]; }
+  if (!e){ if (id && storeMode === 'pending') pendingId = id; e = entries[0]; }
   showPlay(e.play, {source:e.source, id:e.id});
 }
 export function showPlay(play, meta){
   if (playing) setPlaying(false);
-  stopAt = null; put.current(meta);
-  put.F(fieldOf(play.field)); put.orient(screenOrient());
+  stopAt = null; current = meta;
+  setField(fieldOf(play.field)); setOrient(screenOrient());
   svg.classList.toggle('no-def', !$('#t-def').checked);
-  put.model(compile(play)); t = 0; endHold = 0;
-  markNav();
+  model = compile(play); t = 0; endHold = 0;
+  emit('showing');
   $('#pkind').textContent = meta.source === 'preview' ? 'Preview · not saved yet' : meta.source === 'shared' ? play.kind + ' · shared with you' : play.kind + (meta.source === 'team' ? (storeMode === 'db' ? ' · team' : ' · saved here') : '');
   $('#pname').textContent = play.name; $('#psum').textContent = play.summary;
   const chips = $('#pchips'); chips.replaceChildren();
@@ -119,20 +123,32 @@ export function updateAct(){
 }
 $('#act').addEventListener('click', () => {
   if (!current) return;
-  if (current.source === 'preview'){ backToEditor(); return; }
+  if (current.source === 'preview'){ emit('back-to-editor'); return; }
   if (current.source === 'shared'){ saveShared(); return; }
   const e = libEntries().find(x => x.id === current.id); if (!e) return;
-  if (e.source === 'team') openEditor({...clone(e.raw), id:e.id, docId:e.id});
-  else openEditor(copyOfBuiltin(e.play));
+  emit('edit', e.source === 'team' ? draftOfSaved(e) : copyOfBuiltin(e.play));
 });
+// the editor takes the field: stop playing and forget what was on screen
+export function leavePlayback(){ setPlaying(false); current = null; }
+
+// a drill packed into a #d= link
+async function openShared(packed){
+  try {
+    sharedRaw = await readShared(packed);
+    showPlay({...timeDraft({...sharedRaw, id:'shared'}), id:'shared'}, {source:'shared', id:'shared'});
+  } catch (err){
+    const first = builtins()[0];
+    showPlay(first, {source:'builtin', id:first.id});
+    $('#pkind').textContent = 'That shared link is damaged or incomplete';
+  }
+}
 
 async function saveShared(){
   if (!sharedRaw) return;
   const id = newDocId(), now = Date.now(), body = serialize(sharedRaw); body.createdAt = now; body.updatedAt = now;
   try {
     await saveDrill(id, body);
-    const raw = readRaw(body), entry = {id, raw, play: {...timeDraft({...raw, id}), id}};
-    team.push(entry); buildNav(); put.sharedRaw(null); location.hash = id;
+    saveEntry(entryFrom(id, body)); emit('drills-changed'); sharedRaw = null; location.hash = id;
   } catch (err){ $('#pkind').textContent = errText(err); }
 }
 export function setPlaying(v){
@@ -189,8 +205,20 @@ $('#t-def').addEventListener('change', e => { svg.classList.toggle('no-def', !e.
 ['#t-pause','#t-loop'].forEach(s => $(s).addEventListener('change', save));
 addEventListener('resize', () => {
   if (screenOrient() === orient || mode === 'edit') return;   // the editor handles its own resizing
-  put.orient(screenOrient()); drawPitch(model.play.view); buildPieces(); lastStep = -1; render();
+  setOrient(screenOrient()); drawPitch(model.play.view); buildPieces(); lastStep = -1; render();
 });
+
+/* ---------- after the saved drills (re)load ----------
+   Show the saved drill a link asked for, or refresh the saved drill on screen if it changed or was deleted. */
+export function followStore(){
+  if (pendingId && team.some(x => x.id === pendingId) && mode !== 'edit'){ const id = pendingId; pendingId = null; select(id); return; }
+  pendingId = null;
+  if (mode === 'view' && current && current.source === 'team'){
+    const e = team.find(x => x.id === current.id);
+    if (!e) select(builtins()[0].id);
+    else if (JSON.stringify(e.play) !== JSON.stringify(model.play)){ const was = playing; select(e.id); if (was) setPlaying(true); }
+  }
+}
 
 /* ---------- playback preferences ---------- */
 

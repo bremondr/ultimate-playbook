@@ -1,4 +1,5 @@
 /* ---------- compile a timed play into segments ---------- */
+import { fieldOf } from '../data/fields.js';
 import { pos } from './motion.js';
 import { curveOf, typeOf } from './throws.js';
 
@@ -24,7 +25,8 @@ export function compile(play){
     T += D;
   });
   throws.forEach(th => meetOnTheRun(P, th));
-  const m = {play, P, starts, throws, fakes, marks:{}, total:T};
+  // the model carries its field, so working out positions needs nothing from outside
+  const m = {play, field:fieldOf(play.field), P, starts, throws, fakes, marks:{}, total:T};
   // a marking defender switches to a new player at these moments
   const order = throws.slice().sort((a, b) => a.t0 - b.t0);
   Object.values(P).forEach(({def}) => {

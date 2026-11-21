@@ -1,15 +1,16 @@
 /* ---------- storage: shared team store, or this browser ---------- */
-import { BUILTIN } from './data/builtins.js';
 import { fieldOf } from './data/fields.js';
+import { emit } from './events.js';
+import { setTeam, team } from './library.js';
 import { FACES } from './model/facing.js';
 import { FORCES } from './model/formation.js';
 import { curveOf, GRIPS, THROW_TYPES, typeOf } from './model/throws.js';
 import { timeDraft } from './model/timing.js';
-import { buildNav } from './nav.js';
-import { playing, select, setPlaying, updateAct } from './player.js';
-import { canWrite, current, mode, model, pendingId, put, storeMode, team } from './state.js';
 import { $, clamp, r2 } from './util.js';
 
+/* Store state. Other modules read these; only this module changes them. */
+export let storeMode = 'pending';   // 'pending' until we know, then 'db' (the team store of a Claude artifact) or 'local'
+export let canWrite = null;         // null = unknown, keep the controls
 let dbApi = null;
 export function serialize(d){
   return {
@@ -77,7 +78,8 @@ export function readRaw(o){
     field: o.field === 'small' ? 'small' : 'full', format: o.format === 5 ? 5 : 7, force: FORCES[o.force] ? o.force : 'right',
     disc: oIds.has(o.disc) ? o.disc : null, players, steps, createdAt: num(o.createdAt) ? o.createdAt : 0};
 }
-function entryFrom(id, data){
+// a library entry from a stored drill
+export function entryFrom(id, data){
   const raw = readRaw(data); if (!raw) return null;
   return {id, raw, play: {...timeDraft({...raw, id}), id}};
 }
@@ -92,24 +94,14 @@ export async function removeDrill(id){
   if (storeMode === 'db') return dbApi.collection('drills').doc(id).delete();
   const all = localRead(); delete all[id]; localWrite(all);
 }
+// the status line under the drill list belongs to the store
 function setSync(t){ $('#sync').textContent = t; }
-function updateWriteUI(){ $('#new').hidden = canWrite === false; if (mode !== 'edit') updateAct(); }
-function afterTeamChange(){
-  buildNav();
-  if (pendingId && team.some(x => x.id === pendingId) && mode !== 'edit'){ const id = pendingId; put.pendingId(null); select(id); return; }
-  put.pendingId(null);
-  if (mode === 'view' && current && current.source === 'team'){
-    const e = team.find(x => x.id === current.id);
-    if (!e) select(BUILTIN[0].id);
-    else if (JSON.stringify(e.play) !== JSON.stringify(model.play)){ const was = playing; select(e.id); if (was) setPlaying(true); }
-  }
-}
 function localMode(){
-  put.storeMode('local');
+  storeMode = 'local';
   const all = localRead();
-  put.team(Object.entries(all).map(([id, b]) => entryFrom(id, b)).filter(Boolean).sort((a, b) => a.raw.createdAt - b.raw.createdAt));
+  setTeam(Object.entries(all).map(([id, b]) => entryFrom(id, b)).filter(Boolean).sort((a, b) => a.raw.createdAt - b.raw.createdAt));
   setSync('Drills you draw are saved in this browser only.');
-  afterTeamChange();
+  emit('store-loaded');
 }
 export async function initStore(){
   const c = window.claude;
@@ -117,22 +109,22 @@ export async function initStore(){
   setSync('Loading team drills…');
   let db = null, user = null;
   try { [db, user] = await Promise.all([c.use('db'), c.use('user')]); } catch(e){}
-  if (user){ try { const v = await user.can('data.write'); if (v === false) put.canWrite(false); else if (v === true) put.canWrite(true); } catch(e){} }
-  if (!db){ localMode(); updateWriteUI(); return; }
-  dbApi = db; put.storeMode('db'); updateWriteUI();
+  if (user){ try { const v = await user.can('data.write'); if (v === false) canWrite = false; else if (v === true) canWrite = true; } catch(e){} }
+  if (!db){ localMode(); emit('access-changed'); return; }
+  dbApi = db; storeMode = 'db'; emit('access-changed');
   let timer = setTimeout(() => setSync('Can’t reach the saved team drills yet.'), 10000);
   db.collection('drills').orderBy('createdAt').onSnapshot(snap => {
     if (!snap.metadata.fromCache && timer){ clearTimeout(timer); timer = null; }
-    put.team(snap.docs.map(d => entryFrom(d.id, d.data())).filter(Boolean));
+    setTeam(snap.docs.map(d => entryFrom(d.id, d.data())).filter(Boolean));
     setSync(team.length ? `${team.length} team drill${team.length > 1 ? 's' : ''}, shared with everyone who opens this page.`
       : canWrite === false ? 'No team drills yet.' : 'No team drills yet. Draw one and it’s shared with everyone who opens this page.');
-    afterTeamChange();
+    emit('store-loaded');
   }, () => { if (timer){ clearTimeout(timer); timer = null; } setSync('Saved team drills are unavailable right now.'); });
 }
 
 export function errText(err){
   const c = err && err.code;
-  if (c === 'invalid_argument'){ put.canWrite(false); updateWriteUI(); return 'You can view drills here but not save them. Ask the owner for Contributor access.'; }
+  if (c === 'invalid_argument'){ canWrite = false; emit('access-changed'); return 'You can view drills here but not save them. Ask the owner for Contributor access.'; }
   if (c === 'quota_exceeded') return 'The drill store is full. Delete a few old drills and try again.';
   if (c === 'resource_exhausted') return 'Too many saves at once. Wait a moment and try again.';
   return 'Couldn’t save right now. Check your connection and try again.';
