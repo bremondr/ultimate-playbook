@@ -3,10 +3,12 @@
    - The page itself (index.html) is fetched from the network first, so updates arrive, with the stored copy as fallback.
    - Google Fonts are stored the first time they load, and refreshed in the background.
    - Older app caches are deleted when a new version takes over.
+   - Previews of pull requests (under preview/, see README) are left alone.
    RELEASING: bump VERSION whenever any app file changes, and list new files in APP_FILES (see README). */
 const VERSION = 'v2';
 const CACHE = 'playbook-' + VERSION;
 const FONT_CACHE = 'playbook-fonts';
+const PREVIEWS = new URL('./preview/', self.registration.scope).pathname;
 const APP_FILES = [
   './',
   './manifest.webmanifest',
@@ -116,6 +118,8 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  // previews of pull requests live under preview/ on the same site: they are not this app, so leave them to the network
+  if (url.origin === self.location.origin && url.pathname.startsWith(PREVIEWS)) return;
   if (url.origin === self.location.origin){
     const isPage = req.mode === 'navigate' || url.pathname.endsWith('/index.html') || url.href === self.registration.scope;
     e.respondWith(isPage ? pageFirstFromNetwork(req) : cacheFirst(req));
