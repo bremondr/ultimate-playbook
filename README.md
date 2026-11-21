@@ -17,7 +17,7 @@ Built in: vertical stack, horizontal stack, dump & swing, go-to drill, box drill
 
 ## Drawing a drill
 
-**Draw a new drill** (or **Edit a copy** on any built-in one) opens the full-screen editor.
+**Draw a new drill** opens the full-screen editor, starting from a blank field or from a copy of any built-in or saved drill. **Edit a copy** on a drill does the same for the one you're watching, and the Drill tab can also copy another drill in.
 
 - **Tools** (left rail): Select, Offense, Defense, Group, Cone, Throw, Erase, and Multi for multi-select. Tools with options open them beside the tool.
 - **Setup** is where everyone starts. Each **step** holds runs and at most one throw. Timing is automatic: the receiver and the disc reach the catch point together.

@@ -131,6 +131,9 @@ body:not(.editing) #field{cursor:pointer}
 .item small{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
 .item .tag{font-family:var(--display);font-weight:600;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-left:6px}
 .sync{font-size:12.5px;color:var(--muted);margin:0}
+.newpick{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--rule);border-radius:12px;background:var(--bg)}
+.newpick .item{min-height:40px;padding:8px 10px}
+.newpick .item b{font-size:14px}
 
 @media (max-width:640px){
   #menu span{display:none}
@@ -372,7 +375,12 @@ body.editing .app{display:none}
       <div class="brand"><h1>Ultimate <span>Playbook</span></h1><p>Animated plays and drills. 7 v 7 or 5 v 5, metres.</p></div>
       <button class="ibtn" id="drawer-close" type="button" title="Close" aria-label="Close list"><svg viewBox="0 0 24 24"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 12l6.3-7.7z"/></svg></button>
     </div>
-    <button class="newbtn" id="new" type="button"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>Draw a new drill</button>
+    <button class="newbtn" id="new" type="button" aria-expanded="false" aria-controls="new-pick"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>Draw a new drill</button>
+    <div class="newpick" id="new-pick" hidden>
+      <button class="ghost" id="new-blank" type="button">Start from a blank field</button>
+      <span class="small">Or start from a copy of</span>
+      <ul class="list" id="new-from"></ul>
+    </div>
     <nav class="groups" id="nav" aria-label="Plays and drills"></nav>
     <p class="sync" id="sync"></p>
   </aside>
@@ -512,6 +520,7 @@ body.editing .app{display:none}
             <div class="tb"><span>Players per side</span><div class="seg full" id="e-format" role="group" aria-label="Players per side"><button data-f="7">7 v 7</button><button data-f="5">5 v 5</button></div></div>
             <div class="tb"><span>Field</span><div class="seg full" id="e-field" role="group" aria-label="Field size"><button data-fd="full" title="100 × 37 m">Full</button><button data-fd="small" title="75 × 25 m">Small</button></div></div>
           </div>
+          <label class="tb"><span>Start from an existing drill</span><select id="e-from"></select></label>
           <div class="tb"><span>Start from a formation</span>
             <div class="forms" id="e-forms"></div>
             <label class="check"><input type="checkbox" id="e-formdef" checked> With person defense</label>
@@ -1751,7 +1760,7 @@ function fillDetails(){
   $('#s-name').value = draft.name; $('#e-sum').value = draft.summary || '';
   const press = (sel_, attr, v) => document.querySelectorAll(sel_ + ' button').forEach(b => b.setAttribute('aria-pressed', b.dataset[attr] === String(v) ? 'true' : 'false'));
   press('#e-kind', 'k', draft.kind); press('#e-format', 'f', draft.format); press('#e-field', 'fd', draft.field); press('#e-force', 'fc', draft.force);
-  renderForms();
+  renderForms(); fillFromSelect();
   $('#e-delete').hidden = !draft.docId;
 }
 function renderForms(){
@@ -2124,7 +2133,43 @@ $('#e-forms').addEventListener('click', e => { const b = e.target.closest('.fbtn
 $('#e-disc').addEventListener('change', e => { const before = JSON.stringify(draft); draft.disc = e.target.value || null; commit(before); renderEditor(); });
 $('#s-undo').addEventListener('click', undo);
 $('#s-redo').addEventListener('click', redo);
-$('#new').addEventListener('click', () => { openDrawer(false); openEditor(blankDraft()); });
+/* new drills: blank, or a copy of any built-in or saved drill */
+function copyOfEntry(e){
+  if (e.source === 'team') return {...clone(e.raw), id:null, docId:null, createdAt:undefined, name:(e.raw.name || 'Untitled drill') + ' (copy)'};
+  return copyOfBuiltin(e.play);
+}
+function fillNewPick(){
+  const ul = $('#new-from'); ul.replaceChildren();
+  libEntries().forEach(e => {
+    const li = document.createElement('li'), b = document.createElement('button');
+    b.type = 'button'; b.className = 'item';
+    const nm = document.createElement('b'); nm.textContent = e.play.name;
+    const sm = document.createElement('small'); sm.textContent = `${e.play.kind} · ${e.play.steps.length} step${e.play.steps.length > 1 ? 's' : ''}`;
+    b.append(nm, sm);
+    b.addEventListener('click', () => { openDrawer(false); showNewPick(false); openEditor(copyOfEntry(e)); });
+    li.appendChild(b); ul.appendChild(li);
+  });
+}
+function showNewPick(on){ $('#new-pick').hidden = !on; $('#new').setAttribute('aria-expanded', on ? 'true' : 'false'); if (on) fillNewPick(); }
+$('#new').addEventListener('click', () => showNewPick($('#new-pick').hidden));
+$('#new-blank').addEventListener('click', () => { openDrawer(false); showNewPick(false); openEditor(blankDraft()); });
+function fillFromSelect(){
+  const s = $('#e-from'); s.replaceChildren(); s.add(new Option('Choose a drill to copy…', ''));
+  libEntries().forEach(e => s.add(new Option(`${e.play.name} (${e.play.kind.toLowerCase()})`, e.source + ':' + e.id)));
+  s.value = '';
+}
+$('#e-from').addEventListener('change', e => {
+  const v = e.target.value; if (!v) return;
+  const [src, ...rest] = v.split(':'), id = rest.join(':'), entry = libEntries().find(x => x.source === src && x.id === id);
+  if (!entry) return;
+  const before = JSON.stringify(draft), c = copyOfEntry(entry), keepName = draft.name && draft.name !== 'New drill';
+  ['players','steps','disc','field','format','force','kind','summary'].forEach(k => { if (c[k] !== undefined) draft[k] = clone(c[k]); });
+  if (!keepName) draft.name = c.name;
+  selIds = new Set(); pendingThrow = null; es = -1; F = fieldOf(draft.field);
+  commit(before); fillDetails(); fillStep(); refitView(); layoutField(true); renderEditor();
+  hint(`Copied everything from ${entry.play.name}. Undo brings back what you had.`);
+  e.target.value = '';
+});
 $('#s-preview').addEventListener('click', () => {
   const play = timeDraft(draft);
   leaveStudio();
@@ -2331,6 +2376,7 @@ async function initStore(){
 
 /* ---------- drawer and popovers ---------- */
 function openDrawer(on){
+  if (!on) showNewPick(false);
   $('#drawer').hidden = !on; $('#scrim').hidden = !on; $('#menu').setAttribute('aria-expanded', on ? 'true' : 'false');
   if (on){ closePops(); const cur = $('#nav .item[aria-current="true"]') || $('#nav .item'); if (cur) cur.focus({preventScroll:false}); }
 }
