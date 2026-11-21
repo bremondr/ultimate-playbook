@@ -1,12 +1,28 @@
 /* ---------- the field: turf, lines, end zones, distance marks ---------- */
 import { el, lineM, M, rectM, svg } from './svg.js';
 import { F, orient } from './view.js';
-import { $, f2 } from '../util.js';
+import { $, clamp, f2 } from '../util.js';
 
+/* The part of the field to show, along its length: at least `view` ([x0, x1] in metres), widened to the shape of the
+   drawing area so the field fills it rather than leaving a band of background on one side. It stays inside the field
+   where it can, and the whole field is shown, centred, when it (nearly) fits. Returns [start, length] in metres. */
+function fitWindow([v0, v1], across){
+  const box = svg.getBoundingClientRect();
+  let len = v1 - v0 + 2;
+  if (box.width > 0 && box.height > 0) len = Math.max(len, (orient === 'h' ? box.width / box.height : box.height / box.width) * across);
+  const lo = -1, hi = F.L + 1;
+  // nearly all of it fits: show all of it (a little smaller) rather than cut an end zone off at the edge
+  if (len >= .85 * (hi - lo)) len = Math.max(len, hi - lo);
+  return [len >= hi - lo ? (lo + hi - len) / 2 : clamp((v0 + v1 - len) / 2, lo, hi - len), len];
+}
+
+let lastView = null;
 export function drawPitch(view){
-  const [v0, v1] = view;
-  if (orient === 'h') svg.setAttribute('viewBox', `${v0-1} -1 ${v1-v0+2} ${F.W+5}`);
-  else svg.setAttribute('viewBox', `-1 ${-(v1+1)} ${F.W+8} ${v1-v0+2}`);
+  lastView = view;
+  const across = orient === 'h' ? F.W + 5 : F.W + 8, [start, len] = fitWindow(view, across);
+  if (orient === 'h') svg.setAttribute('viewBox', `${f2(start)} -1 ${f2(len)} ${across}`);
+  else svg.setAttribute('viewBox', `-1 ${f2(-(start + len))} ${across} ${f2(len)}`);
+  const v0 = start + 1, v1 = start + len - 1;   // what shows, for the distance marks
   $('#dir').textContent = orient === 'h' ? 'Offense attacks →' : 'Offense attacks ↑';
   const g = $('#g-pitch'); g.replaceChildren();
   rectM(0,0,F.L,F.W,{fill:'var(--turf)'},g);
@@ -49,3 +65,11 @@ export function drawPitch(view){
     tx.textContent = dd === 0 ? 'GOAL' : dd + ' m';
   }
 }
+
+// when the drawing area changes shape (window resized, caption or key grew, presentation mode), fit the field again
+let refitQueued = false;
+new ResizeObserver(() => {
+  if (refitQueued || !lastView) return;
+  refitQueued = true;
+  requestAnimationFrame(() => { refitQueued = false; drawPitch(lastView); });
+}).observe(svg);
