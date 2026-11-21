@@ -1,4 +1,5 @@
 /* ---------- drafts: the raw, untimed form of a drill that the editor works on ---------- */
+import { fitLabel } from './labels.js';
 import { curveOf, GRIPS, typeOf } from './throws.js';
 import { clone } from '../util.js';
 
@@ -6,7 +7,7 @@ export function copyOfBuiltin(p){
   return {
     id:null, docId:null, name:p.name + ' (copy)', kind:p.kind, summary:p.summary, disc:p.disc, field:p.field || 'full', format:p.format || 7,
     players: p.players.map(q => { const r = {id:q.id, team:q.team, at:q.at ? q.at.slice() : null};
-      if (q.team === 'O') r.label = (q.label || q.id).slice(0, 3);
+      if (q.team === 'O') r.label = fitLabel(q.label || q.id);
       if (q.follow){ r.follow = q.follow; r.offset = q.offset.slice(); r.lag = q.lag ?? .35; }
       if (q.face) r.face = q.face;
       if (q.mark) r.mark = clone(q.mark);

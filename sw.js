@@ -60,6 +60,7 @@ const APP_FILES = [
   './js/model/drafts.js',
   './js/model/facing.js',
   './js/model/formation.js',
+  './js/model/labels.js',
   './js/model/motion.js',
   './js/model/throws.js',
   './js/model/timing.js',

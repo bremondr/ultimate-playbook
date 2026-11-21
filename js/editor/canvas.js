@@ -5,6 +5,7 @@ import { draft, es, isSel, pendingThrow, selIds } from './session.js';
 import { emit } from '../events.js';
 import { faceTarget } from '../model/facing.js';
 import { compile } from '../model/compile.js';
+import { labelSize } from '../model/labels.js';
 import { bez, discAt, facingDef, hand, markTargetAt, pos } from '../model/motion.js';
 import { timeDraft } from '../model/timing.js';
 import { drawFake, drawThrow, faceAngle, makeCone, makePlayer, placeDisc } from '../render/pieces.js';
@@ -82,7 +83,7 @@ export function renderEditor(){
         else {
           const g = el('g',{'data-kind':'wp','data-id':id,'data-idx':k, transform:`translate(${f2(m[0])} ${f2(m[1])})`, opacity:.55},gh);
           el('circle',{r:1.3,fill:isD?'var(--def)':'var(--off)',stroke:'var(--chalk)','stroke-width':.18,'stroke-dasharray':'.4 .3'},g);
-          if (!isD){ const tx = el('text',{'text-anchor':'middle','dominant-baseline':'central','font-size':p.label.length>1?1.2:1.45,'font-weight':700,fill:'var(--off-ink)',y:.05},g); tx.textContent = p.label; }
+          if (!isD){ const tx = el('text',{'text-anchor':'middle','dominant-baseline':'central','font-size':labelSize(p.label),'font-weight':700,fill:'var(--off-ink)',y:.05},g); tx.textContent = p.label; }
         }
       });
     });

@@ -46,7 +46,7 @@ jobs:
       # Every run publishes main, so every run checks main first: a broken main is never published.
       - name: Check main
         run: |
-          node --test tools/build-site.test.mjs
+          node --test tools/*.test.mjs $(ls tests/*.test.mjs 2>/dev/null)
           if [ -f tools/check-imports.mjs ]; then node tools/check-imports.mjs; fi
 
       # Same-repository pull requests only, filtered before any limit so forks can't crowd real ones out.
