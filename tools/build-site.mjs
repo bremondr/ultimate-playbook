@@ -9,6 +9,9 @@
    build-summary.json:  (not published) for each pull request asked for: built (with the commit), skipped (and why)
                         or over the cap. The workflow turns it into one comment per pull request.
 
+   The live app's sw.js gets its VERSION (a hash of the published files) and APP_FILES (the published files)
+   filled in here, so its offline copy updates whenever a file changes.
+
    A preview is the app exactly as in its pull request, with three changes made here:
    - tools/preview-runtime.js is the first script of its index.html (its own browser storage, and a badge);
    - a robots noindex tag, so previews stay out of search results;
@@ -17,6 +20,7 @@
    See "Previews of pull requests" in the README. */
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -35,6 +39,22 @@ self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 `;
 
 /* ---- pure helpers (tested in tools/build-site.test.mjs) ---- */
+
+/** A short hash of the site's files (path and content), so the live app's offline cache changes exactly when they do. */
+export function contentVersion(files){
+  const h = createHash('sha256');
+  for (const [name, data] of [...files].sort((a, b) => a[0] < b[0] ? -1 : 1)) h.update(name).update('\0').update(data).update('\0');
+  return h.digest('hex').slice(0, 12);
+}
+
+/** The live app's sw.js with VERSION and APP_FILES written from what is really published: nobody has to bump them by hand. */
+export function stampServiceWorker(source, version, files){
+  const list = ['./', ...files.filter(f => f !== 'sw.js').sort().map(f => `./${f}`)];
+  const withVersion = source.replace(/const VERSION = '[^']*';/, () => `const VERSION = '${version}';`);
+  const stamped = withVersion.replace(/const APP_FILES = \[[\s\S]*?\n\];/, () => `const APP_FILES = [\n${list.map(f => `  '${f}'`).join(',\n')}\n];`);
+  if (withVersion === source || stamped === withVersion) throw new Error('sw.js has no VERSION or APP_FILES to fill in.');
+  return stamped;
+}
 
 export const escapeHtml = text => String(text).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 
@@ -169,7 +189,13 @@ export function build({ out, main, previews = [], repo = '', limit = MAX_PREVIEW
   fs.mkdirSync(out, {recursive: true});
   const summary = {production: commitOf(main), previews: [], results: []};
 
-  exportSite(main, out);
+  const live = exportSite(main, out);
+  if (live.includes('sw.js')){
+    const files = live.filter(f => f !== 'sw.js');
+    const version = contentVersion(files.map(f => [f, fs.readFileSync(path.join(out, f))]));
+    fs.writeFileSync(path.join(out, 'sw.js'), stampServiceWorker(fs.readFileSync(path.join(out, 'sw.js'), 'utf8'), version, files));
+    summary.version = version;
+  }
   fs.writeFileSync(path.join(out, '.nojekyll'), '');
 
   const template = fs.readFileSync(path.join(HERE, 'preview-runtime.js'), 'utf8');
@@ -222,7 +248,7 @@ function cli() {
   const previews = args.previews ? JSON.parse(fs.readFileSync(args.previews, 'utf8')) : [];
   const summary = build({out: path.resolve(args.out), main: args.main, previews, repo: args.repo || ''});
   if (args.summary) fs.writeFileSync(path.resolve(args.summary), `${JSON.stringify(summary, null, 2)}\n`);
-  console.log(`live app ${summary.production.slice(0, 7)}; ${summary.previews.length} preview(s): ${summary.previews.map(p => `${p.name}@${p.sha}`).join(', ') || 'none'}`);
+  console.log(`live app ${summary.production.slice(0, 7)}${summary.version ? ` (offline version ${summary.version})` : ''}; ${summary.previews.length} preview(s): ${summary.previews.map(p => `${p.name}@${p.sha}`).join(', ') || 'none'}`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) cli();

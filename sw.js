@@ -4,7 +4,8 @@
    - Google Fonts are stored the first time they load, and refreshed in the background.
    - Older app caches are deleted when a new version takes over.
    - Previews of pull requests (under preview/, see README) are left alone.
-   RELEASING: bump VERSION whenever any app file changes, and list new files in APP_FILES (see README). */
+   VERSION and APP_FILES are filled in when the site is built (tools/build-site.mjs): a hash of the published
+   files and their list. The values here are only used when the folder is served as it is, for local testing. */
 const VERSION = 'v2';
 const CACHE = 'playbook-' + VERSION;
 const FONT_CACHE = 'playbook-fonts';
