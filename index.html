@@ -23,6 +23,7 @@
 <link rel="stylesheet" href="css/shared.css">
 <link rel="stylesheet" href="css/studio.css">
 <link rel="stylesheet" href="css/features.css"><!-- QR code, backup, presentation mode, feedback -->
+<link rel="stylesheet" href="js/feedback-kit/feedback-kit.css"><!-- Send feedback panel (js/feedback-kit/) -->
 </head>
 <body>
 <div class="app" id="app">
@@ -159,24 +160,6 @@
     <p id="qr-big-name"></p>
     <div class="qrbig-code" id="qr-big-code"></div>
     <button class="primary" id="qr-big-close" type="button">Close</button>
-  </div>
-</div>
-
-<!-- feature: send feedback, a filled-in GitHub issue plus a picture of the field (js/features/feedback.js) -->
-<div class="fb" id="fb" role="dialog" aria-modal="true" aria-labelledby="fb-title" hidden>
-  <div class="fb-card">
-    <h2 id="fb-title">Send feedback</h2>
-    <p class="small" id="fb-what"></p>
-    <img class="fb-img" id="fb-img" alt="Picture of the field as it is now" hidden>
-    <p class="small" id="fb-status" role="status"></p>
-    <a class="primary" id="fb-open" target="_blank" rel="noopener" aria-disabled="true">Write the issue on GitHub</a>
-    <p class="small" id="fb-long" hidden>This drill is too long to put a link to it in the issue.</p>
-    <div class="btnrow">
-      <button class="ghost" id="fb-share" type="button" hidden>Share picture…</button>
-      <a class="ghost" id="fb-save" aria-disabled="true">Save picture</a>
-      <button class="ghost" id="fb-close" type="button">Close</button>
-    </div>
-    <p class="small">The issue opens on GitHub, filled in with what’s on screen and a link back to it. Sign in, paste the picture, say what’s wrong, and tap Submit.</p>
   </div>
 </div>
 

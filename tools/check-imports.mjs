@@ -2,6 +2,7 @@
 /* Checks the module graph under js/: no import cycles, and every import points down the layers
      base (util, events) → data → model → render → services (library, storage, share) → UI (player, nav, editor) → main
    Imports within one layer are allowed as long as they form no cycle.
+   js/feedback-kit/ is meant for other projects too: it may only import from itself.
    Plain Node, no packages:  node tools/check-imports.mjs   (exit code 1 when something is wrong) */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -38,6 +39,7 @@ const problems = [];
 for (const [m, deps] of Object.entries(graph)) for (const d of deps){
   if (!graph[d]) problems.push(`${m} imports ${d}, which does not exist`);
   else if (LAYERS.indexOf(layerOf(d)) > LAYERS.indexOf(layerOf(m))) problems.push(`${m} (${layerOf(m)}) imports ${d} (${layerOf(d)}): up the layers`);
+  if (m.startsWith('feedback-kit/') && !d.startsWith('feedback-kit/')) problems.push(`${m} imports ${d}: the feedback kit may only import from itself`);
 }
 // depth-first search; a module met again while still on the path closes a cycle
 const state = {}, path = [];

@@ -57,18 +57,9 @@ body.presenting .cap small{font-size:16px;margin-top:4px}
   body.presenting .presctl .preshint{display:none}
 }
 
-/* ---------- send feedback (js/features/feedback.js) ---------- */
-/* Above the editor too: feedback can be sent from there. */
-.fb{position:fixed;inset:0;z-index:45;display:grid;place-items:center;background:rgba(10,20,12,.45);
-  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
-.fb[hidden]{display:none}
-.fb-card{display:flex;flex-direction:column;gap:10px;width:min(480px,100%);max-height:100%;overflow-y:auto;background:var(--raised);border:1px solid var(--rule);border-radius:14px;box-shadow:0 12px 32px rgba(0,0,0,.25);padding:16px}
-.fb h2{font-family:var(--display);font-weight:700;font-size:24px;text-transform:uppercase;margin:0;line-height:1.1}
-.fb-img{display:block;width:100%;max-height:min(40vh,40dvh);object-fit:contain;border:1px solid var(--rule);border-radius:8px;background:var(--bg)}
-.fb #fb-status{color:var(--ink);font-size:14px}
-.fb #fb-status.warn{color:var(--warn)}
-.fb a.primary{display:flex;align-items:center;justify-content:center;text-decoration:none;min-height:44px}
-.fb a.ghost{text-decoration:none;color:inherit}
-.fb a[aria-disabled="true"]{opacity:.5;pointer-events:none}
+/* ---------- send feedback (js/features/feedback.js; the panel is js/feedback-kit/feedback-kit.css) ---------- */
+/* the kit's panel in the app's colours and fonts, above the editor too */
+:root{--fk-surface:var(--raised);--fk-ink:var(--ink);--fk-muted:var(--muted);--fk-rule:var(--rule);--fk-accent:var(--accent);
+  --fk-on-accent:var(--on-accent);--fk-warn:var(--warn);--fk-stage:var(--bg);--fk-font:var(--body);--fk-display:var(--display);--fk-z:45}
 #opts-feedback{margin-top:4px}
 #e-feedback{margin-top:8px}
