@@ -57,7 +57,7 @@ body.presenting .cap small{font-size:16px;margin-top:4px}
   body.presenting .presctl .preshint{display:none}
 }
 
-/* ---------- send feedback (js/features/feedback.js; the panel is js/feedback-kit/feedback-kit.css) ---------- */
+/* ---------- send feedback (js/features/feedback.js; the panel is js/vendor/feedback-kit/feedback-kit.css) ---------- */
 /* the kit's panel in the app's colours and fonts, above the editor too */
 :root{--fk-surface:var(--raised);--fk-ink:var(--ink);--fk-muted:var(--muted);--fk-rule:var(--rule);--fk-accent:var(--accent);
   --fk-on-accent:var(--on-accent);--fk-warn:var(--warn);--fk-stage:var(--bg);--fk-font:var(--body);--fk-display:var(--display);--fk-z:45}

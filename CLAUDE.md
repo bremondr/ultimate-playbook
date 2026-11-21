@@ -9,7 +9,7 @@ Read `README.md` first: it describes the features, the module layers, where stat
 - Plain HTML, CSS and ES modules. No build step, no packages, no frameworks. Serve the folder (`python -m http.server`) to run it.
 - Imports point down the layers (data → model → render → services → UI → `main.js`) and never form a cycle. `tools/check-imports.mjs` enforces it.
 - New features that stand on their own go in `js/features/` and are wired in at a few commented points.
-- `js/feedback-kit/` is meant for other projects too: keep it free of anything playbook-specific (that goes in `js/features/feedback.js`), and keep its `README.md` up to date.
+- `js/vendor/` holds copies of modules released in [bremondr/web-kit](https://github.com/bremondr/web-kit) (versions in `vendor.json`). Don't edit them here: change the module in web-kit, release it, then run `node tools/update-vendor.mjs`. Playbook-specific code that uses a module stays outside it (for the feedback kit: `js/features/feedback.js`).
 - Everything written in the repository (code comments, README, issues, PRs, commit messages) is in English, in plain words. The owner often gives feedback in Czech.
 - Don't bump `VERSION` or edit `APP_FILES` in `sw.js` by hand for releases: the site build fills both in. Add a new file to `APP_FILES` only to keep local offline testing complete.
 - `tests/baseline.json` holds the model output of every built-in drill. Rewrite it (`python tests/regression.py --update-baseline`) only after a deliberate change to the model, and say so in the PR.

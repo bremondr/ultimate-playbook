@@ -2,7 +2,7 @@
 
 "Send feedback" for a static web app: a GitHub issue, already filled in, plus a picture to draw on. Plain ES modules and one stylesheet, with no dependencies, no build step, no server and no token. The person signs in to GitHub and taps Submit there.
 
-It's written for the Ultimate Playbook but knows nothing about it, so other projects can use it too. `tools/check-imports.mjs` checks that nothing in this folder imports from outside it.
+It began in [Ultimate Playbook](https://github.com/bremondr/ultimate-playbook) but knows nothing about it. Nothing in this folder imports from outside it (`tools/check-modules.mjs` checks that). Changes are listed in `CHANGELOG.md`.
 
 ## What the person sees
 
@@ -59,7 +59,7 @@ The issue body has these parts, in order:
 - your `sections`;
 - an "On screen" table: your `rows`, then the screen, theme, browser and page.
 
-If the address would be longer than GitHub accepts (about 8 KB), sections give way to their `fallback` text, last first.
+If the address would be longer than GitHub accepts (about 8 KB), sections give way to their `fallback` text, the longest first, until it fits.
 
 For a picture that isn't an SVG, give `picture` any function that returns a promise of a canvas.
 
@@ -71,7 +71,7 @@ Set these on `:root` or `.fk`; the defaults are neutral greys and green:
 
 ### Offline
 
-If the app has a service worker that caches fonts, it must not answer a CORS request with an opaque copy cached from a stylesheet `<link>`. `embedFonts` reads the stylesheet with CORS and can't use such a copy. See `staleWhileRevalidate` in the playbook's `sw.js`.
+If the app has a service worker that caches fonts, it must not answer a CORS request with an opaque copy cached from a stylesheet `<link>`. `embedFonts` reads the stylesheet with CORS and can't use such a copy. See `staleWhileRevalidate` in [Ultimate Playbook's `sw.js`](https://github.com/bremondr/ultimate-playbook/blob/main/sw.js).
 
 ## Limits
 

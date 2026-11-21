@@ -1,9 +1,9 @@
 /* Send feedback: the playbook's description of the issue (js/features/feedback-issue.js), the feedback kit's issue
-   address (js/feedback-kit/issue.js) and the time in a link (js/share.js). Plain Node: node --test tests/ */
+   address (js/vendor/feedback-kit/issue.js) and the time in a link (js/share.js). Plain Node: node --test tests/ */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { issueTitle, playbookIssue } from '../js/features/feedback-issue.js';
-import { issueBody, issueUrl } from '../js/feedback-kit/issue.js';
+import { issueBody, issueUrl } from '../js/vendor/feedback-kit/issue.js';
 import { splitTime, withTime } from '../js/share.js';
 
 const player = {

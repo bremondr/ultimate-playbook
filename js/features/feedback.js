@@ -1,14 +1,14 @@
 /* ---------- send feedback: a filled-in GitHub issue plus a picture of the field to draw on ----------
-   The panel, the drawing, the clipboard and the issue address are the feedback kit (js/feedback-kit/, which knows
-   nothing about the playbook). This file gives it what is playbook-specific:
+   The panel, the drawing, the clipboard and the issue address are the feedback kit (js/vendor/feedback-kit/, a copy
+   of a release from bremondr/web-kit; it knows nothing about the playbook). This file gives it what is playbook-specific:
    - the picture: the field SVG, with the display font embedded;
    - the description: where (live app or preview, commit), what was on screen (drill, step and time; in the editor
      the step, tool and tab), the field, and a link that reopens this drill at this moment (feedback-issue.js);
    - the entry points: the options popover, the editor's Drill tab, and the preview tab of a pull request preview
      (tools/preview-runtime.js asks with a cancelable `playbook:feedback` event).
    The picture shows only the field: a page can't take a screenshot of itself on iPad Safari. */
-import { embedFonts, svgPicture } from '../feedback-kit/picture.js';
-import { createFeedback } from '../feedback-kit/kit.js';
+import { embedFonts, svgPicture } from '../vendor/feedback-kit/picture.js';
+import { createFeedback } from '../vendor/feedback-kit/kit.js';
 import { edModel } from '../editor/canvas.js';
 import { dirty, draft, es, tool } from '../editor/session.js';
 import { FIELDS } from '../data/fields.js';

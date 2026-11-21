@@ -57,11 +57,6 @@ const APP_FILES = [
   './js/features/feedback.js',
   './js/features/present.js',
   './js/features/qr.js',
-  './js/feedback-kit/feedback-kit.css',
-  './js/feedback-kit/issue.js',
-  './js/feedback-kit/kit.js',
-  './js/feedback-kit/picture.js',
-  './js/feedback-kit/sketch.js',
   './js/library.js',
   './js/main.js',
   './js/model/compile.js',
@@ -82,7 +77,12 @@ const APP_FILES = [
   './js/render/view.js',
   './js/share.js',
   './js/storage.js',
-  './js/util.js'
+  './js/util.js',
+  './js/vendor/feedback-kit/feedback-kit.css',
+  './js/vendor/feedback-kit/issue.js',
+  './js/vendor/feedback-kit/kit.js',
+  './js/vendor/feedback-kit/picture.js',
+  './js/vendor/feedback-kit/sketch.js'
 ];
 
 self.addEventListener('install', e => {

@@ -1,6 +1,6 @@
 /* ---------- send feedback: what the issue says about the playbook (no DOM, so the unit tests can run it in plain Node) ----------
    js/features/feedback.js gathers what is on screen into a `context` object; playbookIssue(context) turns it into the
-   title, the rows and the Reopen section for the feedback kit (js/feedback-kit/), which adds the device's own rows
+   title, the rows and the Reopen section for the feedback kit (js/vendor/feedback-kit/), which adds the device's own rows
    and builds the address of the new issue. */
 
 const secs = t => (Math.round(t * 10) / 10).toFixed(1) + ' s';

@@ -5,7 +5,7 @@
      labels    ['feedback'], put on the issue when the person may label (the repository's owner can)
      sections  [{heading, text, fallback}] after "What's wrong" and "Picture": app-specific blocks, such as a link
                that reopens what was on screen. A section with a `fallback` gives way to it when the address would
-               be too long; GitHub refuses addresses over about 8 KB.
+               be too long (the longest first); GitHub refuses addresses over about 8 KB.
      rows      [[name, value]] for the table at the end (the kit adds the device's own rows)
      footer    a small line at the very end */
 
@@ -29,11 +29,12 @@ export function issueUrl(issue, limit = URL_LIMIT){
     + ((it.labels || []).length ? `&labels=${encodeURIComponent(it.labels.join(','))}` : '')
     + `&body=${encodeURIComponent(issueBody(it))}`;
   let it = {...issue, sections: [...(issue.sections || [])]}, url = address(it), shortened = false;
-  // give way section by section, last first
-  for (let k = it.sections.length - 1; k >= 0 && url.length > limit; k--){
-    const s = it.sections[k];
-    if (s.fallback === undefined) continue;
-    it.sections[k] = {...s, text: s.fallback}; shortened = true; url = address(it);
+  // give way section by section, the longest first, until the address fits
+  const order = it.sections.map((s, k) => k).filter(k => it.sections[k].fallback !== undefined)
+    .sort((a, b) => it.sections[b].text.length - it.sections[a].text.length);
+  for (const k of order){
+    if (url.length <= limit) break;
+    it.sections[k] = {...it.sections[k], text: it.sections[k].fallback}; shortened = true; url = address(it);
   }
   return {url, shortened};
 }
