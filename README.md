@@ -43,6 +43,38 @@ Plain HTML, CSS and JavaScript modules: no build step and no dependencies. Becau
 - `js/player.js` (playback), `js/nav.js` (drill list, popovers, new-drill chooser), `js/library.js` (built-in plus saved drills), `js/storage.js` (saving in this browser, or the shared team store when the page runs as a Claude artifact), `js/share.js` (links with the drill packed in).
 - `js/editor/`: the drill editor. `studio.js` (open, close, save, zoom), `canvas.js` (drawing the draft, step strip, hints), `pointer.js` (taps and drags on the field), `tools.js` (tool rail, tabs, tool options), `selection.js` (Selected tab), `step-tab.js` (Step tab and throws), `drill-tab.js` (Drill tab and formations), `pieces.js` (adding and removing players, the Group tool), `history.js` (undo and redo), `text-fields.js`, `keys.js`, `drafts.js` (blank drafts and copies).
 
+## Previews of pull requests
+
+Every open pull request from this repository gets its own copy of the app on the GitHub Pages site, so a change can be tried on the iPad before it is merged:
+
+| Version | Address |
+|---|---|
+| Live app | https://bremondr.github.io/ultimate-playbook/ (built from `main`) |
+| Preview | https://bremondr.github.io/ultimate-playbook/preview/pr-NUMBER/ |
+| List of previews | https://bremondr.github.io/ultimate-playbook/preview/ |
+
+Opening or pushing to a pull request updates its preview, and a comment on the pull request links to it. Closing or merging the pull request removes it. Pull requests from forks don't get one.
+
+A preview differs from the live app in three ways, all added when the site is built (the app's own files never contain them):
+
+- **Its own saved drills.** Every version shares one browser origin, so `tools/preview-runtime.js` gives each preview its own storage keys (`preview:pr-NUMBER:`): a preview never sees or changes the live app's drills, or another preview's.
+- **A small tab** in the bottom-right corner (Preview PR #NUMBER). Tap it for the commit and links to the pull request, the live app and the other previews; × hides it.
+- **No offline mode.** Its service worker is replaced with one that does nothing, because the caches are shared by every version too. It also isn't listed by search engines.
+
+Share links made in a preview open in that preview.
+
+**How it works.** `.github/workflows/pages.yml` runs on every push to `main`, on pull request events and by hand (Actions, Deploy site, Run workflow). It checks `main`, fetches the open pull requests, and builds the whole site with `tools/build-site.mjs`, reading each version straight from git; then it deploys and comments. It uses `pull_request_target`, so the workflow and the build script that run are always the ones on `main`, and a pull request's code is never run in CI. A change to how the site is built therefore only shows in previews after it is merged. At most 20 previews are published. `.github/workflows/test.yml` runs the checks (below) on every pull request.
+
+To build the same folder locally from any branches:
+
+```sh
+echo '[{"number": 16, "ref": "my-branch"}]' > previews.json
+node tools/build-site.mjs --out _site --main main --previews previews.json
+python3 -m http.server -d _site
+```
+
+**Setting it up (once).** In the repository, Settings, Pages, Build and deployment, set Source to **GitHub Actions** (or `gh api -X PUT repos/bremondr/ultimate-playbook/pages -f build_type=workflow`), then run the workflow once. To go back, set the source to "Deploy from a branch", `main`; the site then has only the live app.
+
 ## To do
 
 - Make it installable on the iPad home screen and usable offline (web app manifest and service worker).
