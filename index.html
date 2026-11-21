@@ -80,7 +80,7 @@ body:not(.editing) #field{cursor:pointer}
 .no-def .dteam{display:none}
 
 .vfoot{display:flex;flex-direction:column;gap:10px;padding:10px 16px 12px;border-top:1px solid var(--rule);background:var(--surface)}
-.cap{min-height:3.2em}
+.cap{height:112px;overflow-y:auto}   /* fixed, so the field keeps its size from step to step */
 .capline{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 .capline b{font-family:var(--display);font-weight:700;font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);white-space:nowrap}
 .capline span{font-weight:600;font-size:17px}
@@ -137,6 +137,7 @@ body:not(.editing) #field{cursor:pointer}
   .vtitle h2{font-size:19px}
   .vfoot{padding:8px 12px 10px}
   .cap p{font-size:14px}
+  .cap{height:124px}
   .stepdots button{font-size:0;padding:0;min-height:14px;border-radius:5px}
   .transport-row{gap:10px}
   .time{display:none}
@@ -232,7 +233,7 @@ body.editing .app{display:none}
 .sbtn[aria-current="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
 .sbtn.add{border-style:dashed;color:var(--muted)}
 .sbtn .dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--warn);border:2px solid var(--surface)}
-.hint{margin:0;font-size:13.5px;color:var(--muted);flex:1 1 280px;min-width:0}
+.hint{margin:0;font-size:13.5px;line-height:1.45;color:var(--muted);flex:1 1 280px;min-width:0;height:2.9em;overflow-y:auto}   /* fixed: the field must not resize as hints change */
 .hint.warn{color:var(--warn);font-weight:500}
 
 /* field cursors while editing */
@@ -270,6 +271,7 @@ body.editing .app{display:none}
   .tabs .sheet-toggle{display:flex;align-items:center;justify-content:center}
   .sbar{flex-wrap:wrap}
   .sname{flex:1 1 100%;order:5;font-size:18px}
+  .hint{height:4.35em}
   #s-close-t,.sstate{display:none}
   #s-preview{padding-inline:10px;font-size:0;gap:0}
   #s-preview .ico{width:16px;height:16px}
@@ -1550,6 +1552,7 @@ function renderHint(){
   h.textContent = txt;
 }
 function hint(text, warn){ hintMsg = {text, warn}; renderHint(); }
+new MutationObserver(() => { const h = $('#hint'); h.title = h.textContent; h.scrollTop = 0; }).observe($('#hint'), {childList:true, characterData:true, subtree:true});
 
 /* tool tray: options for the tool in hand */
 function renderTray(){
