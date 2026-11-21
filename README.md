@@ -43,6 +43,10 @@ Plain HTML, CSS and JavaScript modules: no build step and no dependencies. Becau
 - `js/player.js` (playback), `js/nav.js` (drill list, popovers, new-drill chooser), `js/library.js` (built-in plus saved drills), `js/storage.js` (saving in this browser, or the shared team store when the page runs as a Claude artifact), `js/share.js` (links with the drill packed in).
 - `js/editor/`: the drill editor. `studio.js` (open, close, save, zoom), `canvas.js` (drawing the draft, step strip, hints), `pointer.js` (taps and drags on the field), `tools.js` (tool rail, tabs, tool options), `selection.js` (Selected tab), `step-tab.js` (Step tab and throws), `drill-tab.js` (Drill tab and formations), `pieces.js` (adding and removing players, the Group tool), `history.js` (undo and redo), `text-fields.js`, `keys.js`, `drafts.js` (blank drafts and copies).
 
+## Development
+
+There is nothing to build. `python3 tests/regression.py` serves the folder with `python3 -m http.server`, opens it in headless Chrome with Python Playwright, and checks that there are no page or console errors, the main player and editor flows on an iPad-sized and a phone-sized screen, saving to a mocked team store (as when the page runs as a Claude artifact), and the model output of every built-in drill against `tests/baseline.json`. It needs Python Playwright and Chrome at `/usr/bin/google-chrome`. After a deliberate change to the model, rewrite the baseline with `--update-baseline`. `--trace FILE` and `--shots DIR` record what each step showed, to compare two versions (`--root DIR` serves another copy of the app).
+
 ## To do
 
 - Make it installable on the iPad home screen and usable offline (web app manifest and service worker).
