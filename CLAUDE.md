@@ -27,6 +27,7 @@ The regression check needs `pip install playwright` and a Chrome (on Windows and
 ## Workflow
 
 - One branch and one pull request per issue, with `Fixes #N` in the description. Open work is in the GitHub issues; milestones with a due date come first.
+- Open the pull request as soon as the work is pushed and the checks pass, without asking: the owner needs its preview to try it.
 - Every open pull request gets a preview at `https://bremondr.github.io/ultimate-playbook/preview/pr-N/` (a bot comments the link). The owner tries it on the iPad and then asks for the merge, so don't merge before that.
 - Merged branches are deleted automatically.
 - Feedback from the app arrives as issues with the `feedback` label ("fix the open feedback issues" means those). Each one has a **Reopen** link to the drill at the moment it was sent (`#…&t=SECONDS`); it points at the public site or the preview, so open the part after `#` on a local server in headless Chrome to see the same thing. The table under it says the screen size, orientation, theme and, in the editor, the tool and tab. The pasted picture shows only the field.
