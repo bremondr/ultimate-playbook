@@ -380,7 +380,7 @@ body.editing .app{display:none}
 
 <div class="studio" id="studio" hidden>
   <header class="sbar">
-    <button class="ibtn wide" id="s-close" type="button" title="Close the editor"><svg viewBox="0 0 24 24"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12z"/></svg><span id="s-close-t">Close</span></button>
+    <button class="ibtn wide" id="s-close" type="button" title="Leave the editor and watch this drill"><svg viewBox="0 0 24 24"><path d="M15.4 5.4 14 4l-8 8 8 8 1.4-1.4L8.8 12z"/></svg><span id="s-close-t">Back to playback</span></button>
     <input id="s-name" class="sname" maxlength="80" autocomplete="off" aria-label="Drill name" placeholder="Name this drill">
     <span class="sstate" id="s-state" role="status"></span>
     <span class="sp"></span>
@@ -1178,7 +1178,7 @@ function buildNav(){
       b.append(nm, sm);
       b.setAttribute('aria-current', current && current.id === e.id && current.source !== 'preview' ? 'true' : 'false');
       b.addEventListener('click', () => {
-        if (current?.source === 'preview' && draft){ if (dirty){ backToEditor(); hint('Save or close the drill you are drawing first.', true); return; } draft = null; }
+        if (current?.source === 'preview' && draft){ if (dirty){ backToEditor(); hint('Save the drill you are drawing, or go back to playback and discard it, first.', true); return; } draft = null; }
         openDrawer(false);
         if (location.hash.slice(1) !== e.id) location.hash = e.id; else select(e.id);
       });
@@ -2133,7 +2133,7 @@ $('#s-preview').addEventListener('click', () => {
 let closeArmed = null;
 function armClose(on){
   clearTimeout(closeArmed); closeArmed = null;
-  $('#s-close').classList.toggle('armed', on); $('#s-close-t').textContent = on ? 'Discard changes?' : 'Close';
+  $('#s-close').classList.toggle('armed', on); $('#s-close-t').textContent = on ? 'Discard changes and go back?' : 'Back to playback';
   if (on) closeArmed = setTimeout(() => armClose(false), 4000);
 }
 $('#s-close').addEventListener('click', () => {
@@ -2156,7 +2156,7 @@ $('#e-delete').addEventListener('click', async () => {
   try { await removeDrill(id); team = team.filter(x => x.id !== id); buildNav(); closeEditor(); if (location.hash.slice(1) === id) location.hash = BUILTIN[0].id; else select(BUILTIN[0].id); }
   catch (err){ status(errText(err), true); }
 });
-// Save keeps you in the editor; Close takes you to the saved drill
+// Save keeps you in the editor; Back to playback takes you to the saved drill
 $('#s-save').addEventListener('click', async () => {
   if (!draft) return;
   if (!draft.name.trim()){ draft.name = 'Untitled drill'; $('#s-name').value = draft.name; }
