@@ -19,6 +19,7 @@ import './editor/text-fields.js';
 import './features/qr.js';
 import './features/backup.js';
 import './features/present.js';
+import './pwa.js';
 
 /* ---------- keys and window events ---------- */
 document.addEventListener('keydown', e => {

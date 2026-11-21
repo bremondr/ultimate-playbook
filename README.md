@@ -29,11 +29,29 @@ Built in: vertical stack, horizontal stack, dump & swing, go-to drill, box drill
 
 Drills you draw are saved in this browser (local storage). To move them all to another device or browser, open **Drills** and use **Back up to a file** at the bottom of the list, then **Restore from a file** on the other device. Restoring adds the drills in the file: drills you already have are skipped, and a different drill with the same id is added as a copy, so nothing is overwritten. To send a single drill, share its link.
 
+## On the iPad home screen, and offline
+
+In Safari, tap Share, then **Add to Home Screen**. The app then opens full screen like an app, and it works without a connection once it has been opened online one time: a service worker (`sw.js`) stores all its files. Drills you draw stay in that browser's storage, so back them up to a file now and then (see above).
+
+The service worker runs only on http(s) (GitHub Pages, or a local server), not when the app runs as a claude.ai artifact.
+
+### Releasing a new version
+
+`sw.js` serves the stored files first, so a change reaches people only when the service worker changes:
+
+1. In `sw.js`, bump `VERSION` (for example `'v1'` to `'v2'`) whenever any app file changes. The new service worker stores the new files and deletes the old cache; the next visit after that shows the new version. (`index.html` itself is fetched from the network first, but the scripts and styles it loads come from the cache until `VERSION` changes.)
+2. If you add, rename or remove a file, update `APP_FILES` in `sw.js` too. This lists any app file that's missing from it:
+
+   ```sh
+   git ls-files css js icons index.html manifest.webmanifest | while read f; do grep -q "'./$f'" sw.js || echo "missing: $f"; done
+   ```
+
 ## Project structure
 
 Plain HTML, CSS and JavaScript modules: no build step and no dependencies. Because the scripts are ES modules, open the page through a web server (GitHub Pages, or `python3 -m http.server` in this folder), not straight from the file system.
 
 - `index.html`: markup only. It loads the stylesheets and `js/main.js`.
+- `manifest.webmanifest`, `icons/`, `sw.js`, `js/pwa.js`: installing on the home screen and working offline. `js/pwa.js` registers the service worker.
 - `css/`: `tokens.css` (colours, fonts, dark mode), `base.css`, `player.css` (playback screen and drill list), `shared.css` (buttons and form bits), `studio.css` (the editor).
 - `js/main.js`: boot. Loads the other modules, keyboard and window events, then shows the drill named in the link.
 - `js/state.js`: the shared state (current field and orientation, the drill on screen, saved drills, the editor's draft and selection). Other modules read it directly and change it with `put`, for example `put.draft(d)`.
@@ -47,5 +65,4 @@ Plain HTML, CSS and JavaScript modules: no build step and no dependencies. Becau
 
 ## To do
 
-- Make it installable on the iPad home screen and usable offline (web app manifest and service worker).
 - Saving drills to a shared place for the whole team (for now each browser keeps its own).
