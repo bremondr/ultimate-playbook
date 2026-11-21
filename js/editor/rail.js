@@ -18,11 +18,13 @@ export function setTool(tl){
   renderTray();
   if (mode === 'edit' && draft) renderEditor();
 }
-// a tool's key: open its options when switching to it, or toggle them when it is already in hand
-export function pickToolByKey(tl){ flyOpen = tl !== tool || !flyOpen; setTool(tl); }
+// switching to a tool opens its options, unless they wait to be asked for (the Throw tool's: they're for later)
+const opensItself = tl => !(TOOLS[tl].tray && TOOLS[tl].tray.opensItself === false);
+// a tool's key: switch to it, or toggle its options when it is already in hand
+export function pickToolByKey(tl){ flyOpen = tl !== tool ? opensItself(tl) : !flyOpen; setTool(tl); }
 export function closeTray(){ flyOpen = false; renderTray(); }
 $('#trail').addEventListener('click', e => { const b = e.target.closest('.tool[data-tool]'); if (!b) return;
-  if (b.dataset.tool === tool){ flyOpen = !flyOpen; renderTray(); } else { flyOpen = true; setTool(b.dataset.tool); } });
+  if (b.dataset.tool === tool){ flyOpen = !flyOpen; renderTray(); } else { flyOpen = opensItself(b.dataset.tool); setTool(b.dataset.tool); } });
 $('#tray-close').addEventListener('click', closeTray);
 $('#s-multi').addEventListener('click', () => { multi = !multi; $('#s-multi').setAttribute('aria-pressed', multi ? 'true' : 'false');
   hint(multi ? 'Multi-select is on: each tap adds or removes an item.' : 'Multi-select is off.'); });

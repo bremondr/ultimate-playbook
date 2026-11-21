@@ -9,7 +9,7 @@ import { dropDrag } from './pointer.js';
 import { renderHint, renderTray, setTool } from './rail.js';
 import { renderSelPanel } from './selection.js';
 import { draft, dirty, endSession, setDirty, startSession, tool } from './session.js';
-import { fillStep, refreshDiscSelect, refreshStepExtras, refreshThrowPanel, renderStrip } from './step-tab.js';
+import { fillStep, refreshDiscSelect, refreshStepExtras, refreshThrowPanel, renderStrip, setStep } from './step-tab.js';
 import { fold, setTab, sheetLayout } from './tabs.js';
 import { layoutField, refitView, resetZoom } from './viewport.js';
 import './text-fields.js';
@@ -109,9 +109,12 @@ function status(msg, err){
 on('editor-drawn', () => { renderStrip(); renderHint(); refreshStepExtras(); refreshDiscSelect(); renderSelPanel(); refreshThrowPanel(); });
 // undo or redo swapped the draft: it may even be on another field size
 on('draft-replaced', () => {
+  clearHint();   // what the hint said was about the draft before
   if (fieldOf(draft.field) !== F){ setField(fieldOf(draft.field)); layoutField(true); }
   fillDetails(); fillStep(); renderEditor(); updateState();
 });
 // the formation pictures turn with the field
 on('field-turned', renderForms);
 on('tray-changed', renderTray);
+// the Throw tool drew a throw in another step
+on('show-step', setStep);

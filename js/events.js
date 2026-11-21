@@ -16,7 +16,8 @@ const EVENTS = {
   'editor-drawn':   'editor/canvas: the field was redrawn, so the panels around it catch up',
   'draft-replaced': 'editor/history: undo or redo swapped the whole draft',
   'tray-changed':   'editor/tools/group: the tool options changed shape',
-  'field-turned':   'editor/viewport: the field turned between wide and upright'
+  'field-turned':   'editor/viewport: the field turned between wide and upright',
+  'show-step':      'editor/tools/throw: a throw was drawn in another step (maybe a new one), so show that step'
 };
 const handlers = {};
 function known(name){ if (!(name in EVENTS)) throw new Error(`Unknown event: ${name}`); }
