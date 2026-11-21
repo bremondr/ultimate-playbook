@@ -1197,7 +1197,8 @@ function select(id){
   showPlay(e.play, {source:e.source, id:e.id});
 }
 function showPlay(play, meta){
-  current = meta;
+  if (playing) setPlaying(false);
+  stopAt = null; current = meta;
   F = fieldOf(play.field); orient = screenOrient();
   svg.classList.toggle('no-def', !$('#t-def').checked);
   model = compile(play); t = 0; endHold = 0;
@@ -2128,7 +2129,6 @@ $('#s-preview').addEventListener('click', () => {
   const play = timeDraft(draft);
   leaveStudio();
   showPlay(play, {source:'preview', id:null});
-  setPlaying(true);
 });
 let closeArmed = null;
 function armClose(on){
@@ -2502,7 +2502,6 @@ BUILTIN.push(angelDrill('basic'), angelDrill('break'));
 
 buildNav(); load(); select(location.hash.slice(1));
 initStore();
-if (!matchMedia('(prefers-reduced-motion: reduce)').matches) setTimeout(() => { if (mode === 'view' && !playing && t === 0) setPlaying(true); }, 700);
 </script>
 </body>
 </html>
