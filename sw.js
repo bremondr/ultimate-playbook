@@ -5,7 +5,7 @@
    - Older app caches are deleted when a new version takes over.
    - Previews of pull requests (under preview/, see README) are left alone.
    RELEASING: bump VERSION whenever any app file changes, and list new files in APP_FILES (see README). */
-const VERSION = 'v3';
+const VERSION = 'v2';
 const CACHE = 'playbook-' + VERSION;
 const FONT_CACHE = 'playbook-fonts';
 const PREVIEWS = new URL('./preview/', self.registration.scope).pathname;
