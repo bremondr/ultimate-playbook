@@ -16,6 +16,11 @@ on('store-loaded', () => { buildNav(); followStore(); });
 on('access-changed', () => { showWriteAccess(); if (mode !== 'edit') updateAct(); });
 on('edit', openEditor);
 on('back-to-editor', backToEditor);
+/* features, each self-contained in its own file */
+import './features/qr.js';
+import './features/backup.js';
+import './features/present.js';
+import './pwa.js';
 
 /* ---------- keys and window events ---------- */
 document.addEventListener('keydown', e => {

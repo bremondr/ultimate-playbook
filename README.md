@@ -10,7 +10,8 @@ Use the GitHub Pages site for this repository, or serve this folder locally (`py
 - Tap the field to play the next step and stop at its end. The play button runs the whole thing.
 - The caption under the field shows the current step's coaching note and throw.
 - ⓘ shows the summary. The options button sets speed, pausing after each step, looping, arrows and defense.
-- The share button gives a link to the drill. Built-in drills link by name; drills you drew are packed into the link itself, so it works without any server or account. Whoever opens it can watch it and tap **Save to my drills**.
+- The share button gives a link to the drill. Built-in drills link by name; drills you drew are packed into the link itself, so it works without any server or account. Whoever opens it can watch it and tap **Save to my drills**. The share panel also shows the link as a QR code for players to scan at practice; tap it, or **Show QR code larger**, to fill the screen with it. Very long drawn drills can be too long for a QR code; then send the link instead.
+- The present button (a screen with a play mark, in the top bar on the iPad and wider screens) shows only the field and a large step caption, full screen where the browser allows it, and keeps the screen awake. Tap the field for the next step, **Step back** (or ←) to go back, and **Exit** (or Escape) to leave. iPad Safari doesn't always allow full screen; the app then uses the same layout inside the page. Added to the home screen, the app already fills the screen.
 - The field always runs along the longer side of the screen. The offense attacks toward the pink end zone ("Score here").
 
 Built in: vertical stack, horizontal stack, dump & swing, go-to drill, box drill, angel drill, and the angel drill with a fake and cut back.
@@ -26,18 +27,36 @@ Built in: vertical stack, horizontal stack, dump & swing, go-to drill, box drill
 - **Drill tab**: 7 v 7 or 5 v 5, full field (100 × 37 m) or small field (75 × 25 m), formations (vertical stack, vertical stack with dump, horizontal stack, side stack) and person defense with a force.
 - Keyboard: V O D G C T E switch tools, Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z redo, Ctrl/Cmd+S save, arrows nudge.
 
-Drills you draw are saved in this browser (local storage). To move one to another device, share its link and save it there.
+Drills you draw are saved in this browser (local storage). To move them all to another device or browser, open **Drills** and use **Back up to a file** at the bottom of the list, then **Restore from a file** on the other device. Restoring adds the drills in the file: drills you already have are skipped, and a different drill with the same id is added as a copy, so nothing is overwritten. To send a single drill, share its link.
+
+## On the iPad home screen, and offline
+
+In Safari, tap Share, then **Add to Home Screen**. The app then opens full screen like an app, and it works without a connection once it has been opened online one time: a service worker (`sw.js`) stores all its files. Drills you draw stay in that browser's storage, so back them up to a file now and then (see above).
+
+The service worker runs only on http(s) (GitHub Pages, or a local server), not when the app runs as a claude.ai artifact.
+
+### Releasing a new version
+
+`sw.js` serves the stored files first, so a change reaches people only when the service worker changes:
+
+1. In `sw.js`, bump `VERSION` (for example `'v1'` to `'v2'`) whenever any app file changes. The new service worker stores the new files and deletes the old cache; the next visit after that shows the new version. (`index.html` itself is fetched from the network first, but the scripts and styles it loads come from the cache until `VERSION` changes.)
+2. If you add, rename or remove a file, update `APP_FILES` in `sw.js` too. This lists any app file that's missing from it:
+
+   ```sh
+   git ls-files css js icons index.html manifest.webmanifest | while read f; do grep -q "'./$f'" sw.js || echo "missing: $f"; done
+   ```
 
 ## Project structure
 
 Plain HTML, CSS and JavaScript modules: no build step and no dependencies. Because the scripts are ES modules, open the page through a web server (GitHub Pages, or `python3 -m http.server` in this folder), not straight from the file system.
 
 - `index.html`: markup only. It loads the stylesheets and `js/main.js`.
+- `manifest.webmanifest`, `icons/`, `sw.js`, `js/pwa.js`: installing on the home screen and working offline. `js/pwa.js` registers the service worker.
 - `css/`: `tokens.css` (colours, fonts, dark mode), `base.css`, `player.css` (playback screen and drill list), `shared.css` (buttons and form bits), `studio.css` (the editor).
 
 The scripts are in layers. Every import points down the layers (or sideways within one), and imports never go round in a circle:
 
-data → model → render → services (library, storage, share) → UI (player, nav, editor) → `main.js`
+data → model → render → services (library, storage, share) → UI (player, nav, editor, features) → `main.js`
 
 - `js/util.js`: small helpers (rounding, ids, `$`, which way the screen is turned). `js/events.js`: the event names and `on`/`emit`; see below.
 - `js/data/`: plain data. `fields.js` (field sizes), `builtins.js` (the hand-timed built-in plays), `angel.js` (the two angel drills, written like drawn drills), `formations.js` (the formations offered in the editor).
@@ -45,6 +64,7 @@ data → model → render → services (library, storage, share) → UI (player,
 - `js/render/`: SVG drawing. `view.js` (which field is drawn, which way it is turned, and whether the player or the editor has it), `svg.js` (field-to-screen mapping), `pitch.js` (the field), `pieces.js` (players, cones, throws, fakes, the disc), `thumb.js` (formation previews).
 - Services: `js/library.js` (built-in plus saved drills; the built-in list is put together the first time it is needed), `js/storage.js` (saving in this browser, or the shared team store when the page runs as a Claude artifact), `js/share.js` (links with the drill packed in).
 - `js/player.js` (playback), `js/nav.js` (drill list, popovers including Share, new-drill chooser).
+- `js/features/`: self-contained features (UI layer), each wired in at a few commented points. `qr.js` (QR code encoder and the QR code in the share panel), `backup.js` (back up and restore drills as a `.json` file), `present.js` (presentation mode). Their styles are in `css/features.css`.
 - `js/editor/`: the drill editor.
   - `studio.js` opens, closes, previews, saves and deletes, and wires the editor's events.
   - `session.js` (the drill being drawn, the step on screen, the tool in hand, the selection), `history.js` (undo and redo), `canvas.js` (drawing the draft and asking where things are), `hint.js` (the hint line), `tabs.js` (the property tabs and the bottom sheet), `viewport.js` (zoom and turning the field).
@@ -64,5 +84,4 @@ There is nothing to build. Two checks:
 
 ## To do
 
-- Make it installable on the iPad home screen and usable offline (web app manifest and service worker).
-- Saving drills to a shared place for the whole team (for now each browser keeps its own).
+Planned features are tracked as [GitHub issues](https://github.com/bremondr/ultimate-playbook/issues).

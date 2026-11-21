@@ -7,7 +7,7 @@
 const EVENTS = {
   // app: main.js listens
   'store-loaded':   'storage: the saved drills were (re)loaded from the store',
-  'drills-changed': 'player: a shared drill was saved, so the drill list needs rebuilding',
+  'drills-changed': 'player or backup: drills were added (a shared drill saved, a backup restored), so the drill list needs rebuilding',
   'access-changed': 'storage: we learned whether this viewer may save drills',
   'showing':        'player: another drill is on screen',
   'edit':           'player, nav: open the editor on this draft',
