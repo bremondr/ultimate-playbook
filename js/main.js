@@ -1,20 +1,26 @@
 /* ---------- boot: wire the page, load preferences, show the drill in the link, connect the store ---------- */
+import { backToEditor, openEditor } from './editor/studio.js';
 import { editorKeys } from './editor/keys.js';
-import { buildNav, closePops, openDrawer } from './nav.js';
-import { load, playing, select, setPlaying, stepNav } from './player.js';
-import { dirty, mode } from './state.js';
+import { dirty } from './editor/session.js';
+import { on } from './events.js';
+import { buildNav, closePops, markNav, openDrawer, showWriteAccess } from './nav.js';
+import { followStore, load, playing, select, setPlaying, stepNav, updateAct } from './player.js';
+import { mode, setOrient } from './render/view.js';
 import { initStore } from './storage.js';
-import './share.js';
-import './editor/studio.js';
-import './editor/history.js';
-import './editor/tools.js';
-import './editor/canvas.js';
-import './editor/selection.js';
-import './editor/drill-tab.js';
-import './editor/step-tab.js';
-import './editor/pieces.js';
-import './editor/pointer.js';
-import './editor/text-fields.js';
+import { screenOrient } from './util.js';
+
+/* ---------- app wiring: what the lower modules announce (events.js), and what happens then ---------- */
+on('showing', markNav);
+on('drills-changed', buildNav);
+on('store-loaded', () => { buildNav(); followStore(); });
+on('access-changed', () => { showWriteAccess(); if (mode !== 'edit') updateAct(); });
+on('edit', openEditor);
+on('back-to-editor', backToEditor);
+/* features, each self-contained in its own file */
+import './features/qr.js';
+import './features/backup.js';
+import './features/present.js';
+import './pwa.js';
 
 /* ---------- keys and window events ---------- */
 document.addEventListener('keydown', e => {
@@ -30,5 +36,6 @@ document.addEventListener('keydown', e => {
 addEventListener('hashchange', () => { if (mode === 'edit') return; select(location.hash.slice(1)); });
 addEventListener('beforeunload', e => { if (mode === 'edit' && dirty){ e.preventDefault(); e.returnValue = ''; } });
 
+setOrient(screenOrient());
 buildNav(); load(); select(location.hash.slice(1));
 initStore();

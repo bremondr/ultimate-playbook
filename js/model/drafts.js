@@ -1,10 +1,6 @@
-/* ---------- drafts: what the editor works on ---------- */
-import { curveOf, GRIPS, typeOf } from '../model/throws.js';
-import { draft, F } from '../state.js';
-import { clamp, clone } from '../util.js';
-
-export const snapPt = ([x, y]) => [clamp(Math.round(x*2)/2, 0, F.L), clamp(Math.round(y*2)/2, 0, F.W)];
-export const byIdIn = () => Object.fromEntries(draft.players.map(p => [p.id, p]));
+/* ---------- drafts: the raw, untimed form of a drill that the editor works on ---------- */
+import { curveOf, GRIPS, typeOf } from './throws.js';
+import { clone } from '../util.js';
 
 export function copyOfBuiltin(p){
   return {
@@ -26,8 +22,10 @@ export function blankDraft(){
     steps:[{title:'', note:'', dur:null, moves:{}, throw:null}]};
 }
 
-// new drills: blank, or a copy of any built-in or saved drill
+// new drills: blank, or a copy of any built-in or saved drill (a library entry)
 export function copyOfEntry(e){
   if (e.source === 'team') return {...clone(e.raw), id:null, docId:null, createdAt:undefined, name:(e.raw.name || 'Untitled drill') + ' (copy)'};
   return copyOfBuiltin(e.play);
 }
+// a saved drill, to edit in place
+export const draftOfSaved = e => ({...clone(e.raw), id:e.id, docId:e.id});

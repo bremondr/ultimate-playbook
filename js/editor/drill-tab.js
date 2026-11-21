@@ -1,18 +1,20 @@
+/* ---------- the Drill tab: type, summary, players per side, field, formations, defense, copy from another drill ---------- */
+import { renderEditor } from './canvas.js';
+import { hint } from './hint.js';
+import { commit } from './history.js';
+import { setTool } from './rail.js';
+import { byIdIn, draft, labelOf, setEs, setPendingThrow, setSelIds } from './session.js';
+import { fillStep } from './step-tab.js';
+import { layoutField, refitView, zoom } from './viewport.js';
 import { fieldOf } from '../data/fields.js';
 import { FORMATIONS } from '../data/formations.js';
-import { hint, labelOf, renderEditor } from './canvas.js';
-import { byIdIn, copyOfEntry } from './drafts.js';
-import { commit } from './history.js';
-import { fillStep } from './step-tab.js';
-import { layoutField, refitView } from './studio.js';
-import { setTool } from './tools.js';
 import { libEntries } from '../library.js';
+import { copyOfEntry } from '../model/drafts.js';
 import { addPersonDefense, FORCES, formation, personOffset } from '../model/formation.js';
 import { formationThumb } from '../render/thumb.js';
-import { draft, orient, put, zoom } from '../state.js';
+import { orient, setField } from '../render/view.js';
 import { $, clamp, clone, r2 } from '../util.js';
 
-/* drill tab */
 export function fillDetails(){
   $('#s-name').value = draft.name; $('#e-sum').value = draft.summary || '';
   const press = (sel_, attr, v) => document.querySelectorAll(sel_ + ' button').forEach(b => b.setAttribute('aria-pressed', b.dataset[attr] === String(v) ? 'true' : 'false'));
@@ -33,7 +35,7 @@ function applyFormation(type){
   draft.players = [...formation(type, draft.format, draft.field, $('#e-formdef').checked, draft.force), ...cones];
   draft.disc = 'h1';
   draft.steps.forEach(st => { st.moves = {}; st.throw = null; });
-  put.selIds(new Set()); put.pendingThrow(null); put.es(-1);
+  setSelIds([]); setPendingThrow(null); setEs(-1);
   commit(before); fillStep(); setTool('select'); refitView(); if (zoom === 'fit') layoutField(true); renderEditor();
   const name = FORMATIONS.find(f => f.id === type).name;
   hint(`${name} placed for ${draft.format} v ${draft.format}${$('#e-formdef').checked ? ', ' + FORCES[draft.force].toLowerCase() : ''}. Drag anyone to adjust, then add a step to draw the cuts.${/"moves":\{"|"throw":\{/.test(before) ? ' Runs and throws were cleared. Undo brings them back.' : ''}`);
@@ -52,7 +54,7 @@ $('#e-format').addEventListener('click', e => { const b = e.target.closest('butt
 $('#e-field').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
   const v = b.dataset.fd; if (v === draft.field) return;
   const before = JSON.stringify(draft), from = fieldOf(draft.field), to = fieldOf(v);
-  rescaleDraft(from, to); draft.field = v; put.F(to); commit(before);
+  rescaleDraft(from, to); draft.field = v; setField(to); commit(before);
   fillDetails(); refitView(); layoutField(true); renderEditor();
   hint(`Field changed to ${to.label}. Everyone moved to the same spot on the new field.`); });
 $('#e-force').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
@@ -70,7 +72,7 @@ $('#e-person').addEventListener('click', () => {
   draft.players = draft.players.filter(p => p.team !== 'D');
   draft.steps.forEach(st => gone.forEach(id => delete st.moves[id]));
   addPersonDefense(draft.players, draft.disc, draft.force);
-  put.selIds(new Set()); commit(before); renderEditor();
+  setSelIds([]); commit(before); renderEditor();
   hint(`${os.length} defender${os.length > 1 ? 's' : ''}, ${FORCES[draft.force].toLowerCase()}. ${draft.disc ? 'The mark is on ' + labelOf(draft.disc) + '. ' : ''}Each defender follows their player through every step.`); });
 $('#e-forms').addEventListener('click', e => { const b = e.target.closest('.fbtn'); if (b) applyFormation(b.dataset.form); });
 function fillFromSelect(){
@@ -85,7 +87,7 @@ $('#e-from').addEventListener('change', e => {
   const before = JSON.stringify(draft), c = copyOfEntry(entry), keepName = draft.name && draft.name !== 'New drill';
   ['players','steps','disc','field','format','force','kind','summary'].forEach(k => { if (c[k] !== undefined) draft[k] = clone(c[k]); });
   if (!keepName) draft.name = c.name;
-  put.selIds(new Set()); put.pendingThrow(null); put.es(-1); put.F(fieldOf(draft.field));
+  setSelIds([]); setPendingThrow(null); setEs(-1); setField(fieldOf(draft.field));
   commit(before); fillDetails(); fillStep(); refitView(); layoutField(true); renderEditor();
   hint(`Copied everything from ${entry.play.name}. Undo brings back what you had.`);
   e.target.value = '';

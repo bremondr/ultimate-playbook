@@ -1,24 +1,17 @@
-import { fieldOf } from '../data/fields.js';
-import { renderEditor } from './canvas.js';
-import { fillDetails } from './drill-tab.js';
-import { fillStep } from './step-tab.js';
-import { layoutField } from './studio.js';
-import { dirty, draft, es, F, put, redoStack, selIds, undoStack } from '../state.js';
+/* ---------- undo and redo ----------
+   Every change records the draft as JSON before it (`before`) and commits it here. Undo and redo swap the whole
+   draft and announce 'draft-replaced'; studio.js then refreshes the panels and the field. */
+import { draft, dirty, restoreDraft, setDirty } from './session.js';
+import { emit } from '../events.js';
 import { $ } from '../util.js';
 
-/* history */
+let undoStack = [], redoStack = [];
+export function resetHistory(){ undoStack = []; redoStack = []; }
 export function commit(before){
-  if (before !== JSON.stringify(draft)){ undoStack.push(before); if (undoStack.length > 120) undoStack.shift(); put.redoStack([]); put.dirty(true); }
+  if (before !== JSON.stringify(draft)){ undoStack.push(before); if (undoStack.length > 120) undoStack.shift(); redoStack = []; setDirty(true); }
   updateState();
 }
-function restore(json){
-  put.draft(JSON.parse(json));
-  if (es >= draft.steps.length) put.es(draft.steps.length - 1);
-  put.selIds(new Set([...selIds].filter(id => draft.players.some(p => p.id === id))));
-  put.pendingThrow(null); put.dirty(true);
-  if (fieldOf(draft.field) !== F){ put.F(fieldOf(draft.field)); layoutField(true); }
-  fillDetails(); fillStep(); renderEditor(); updateState();
-}
+function restore(json){ restoreDraft(JSON.parse(json)); emit('draft-replaced'); }
 export function undo(){ if (!undoStack.length) return; redoStack.push(JSON.stringify(draft)); restore(undoStack.pop()); }
 export function redo(){ if (!redoStack.length) return; undoStack.push(JSON.stringify(draft)); restore(redoStack.pop()); }
 export function updateState(){

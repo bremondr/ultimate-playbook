@@ -1,75 +1,56 @@
-/* ---------- editor (studio) ---------- */
-import { BUILTIN } from '../data/builtins.js';
-import { fieldOf } from '../data/fields.js';
+/* ---------- editor (studio): open, close, preview, save, delete ----------
+   The top of the editor. It also wires the editor's own events: the lower editor modules announce what happened
+   (events.js) and the reactions are listed here, at the end of the file. */
 import { renderEditor } from './canvas.js';
 import { fillDetails, renderForms } from './drill-tab.js';
-import { updateState } from './history.js';
-import { fillStep } from './step-tab.js';
-import { fold, positionFlyout, setTab, setTool, sheetLayout } from './tools.js';
+import { clearHint, hint } from './hint.js';
+import { resetHistory, updateState } from './history.js';
+import { dropDrag } from './pointer.js';
+import { renderHint, renderTray, setTool } from './rail.js';
+import { renderSelPanel } from './selection.js';
+import { draft, dirty, endSession, setDirty, startSession, tool } from './session.js';
+import { fillStep, refreshDiscSelect, refreshStepExtras, refreshThrowPanel, renderStrip } from './step-tab.js';
+import { fold, setTab, sheetLayout } from './tabs.js';
+import { layoutField, refitView, resetZoom } from './viewport.js';
+import './text-fields.js';
+import { fieldOf } from '../data/fields.js';
+import { on } from '../events.js';
+import { builtins, dropEntry, saveEntry } from '../library.js';
 import { FORCES } from '../model/formation.js';
 import { timeDraft } from '../model/timing.js';
 import { buildNav, markNav } from '../nav.js';
-import { select, setPlaying, showPlay } from '../player.js';
-import { drawPitch } from '../render/pitch.js';
+import { leavePlayback, select, showPlay } from '../player.js';
 import { svg } from '../render/svg.js';
-import { dirty, draft, F, fitView, mode, orient, put, storeMode, team, tool, zoom } from '../state.js';
-import { errText, readRaw, removeDrill, saveDrill, serialize } from '../storage.js';
+import { F, setField, setMode, setOrient } from '../render/view.js';
+import { entryFrom, errText, removeDrill, saveDrill, serialize, storeMode } from '../storage.js';
 import { $, newDocId, screenOrient } from '../util.js';
 
 const studio = $('#studio'), sfield = $('#sfield');
 
 /* open / close */
 function enterStudio(){
-  put.mode('edit'); setPlaying(false); put.current(null); markNav();
+  setMode('edit'); leavePlayback(); markNav();
   document.body.classList.add('editing'); studio.hidden = false;
   svg.classList.remove('no-def'); sfield.prepend(svg); svg.dataset.tool = tool;
-  put.F(fieldOf(draft.field));
+  setField(fieldOf(draft.field));
   layoutField(true);
 }
 export function openEditor(d){
-  put.draft(d); put.es(-1); put.selIds(new Set()); put.pendingThrow(null); put.undoStack([]); put.redoStack([]); put.dirty(false); put.drag(null); put.hintMsg(null); put.tab('sel');
+  // a drill with players opens on the Select tool; a blank field opens on Offense
+  startSession(d, d.players.length > 1 ? 'select' : 'off'); resetHistory(); dropDrag(); clearHint();
   draft.field = draft.field === 'small' ? 'small' : 'full'; draft.format = draft.format === 5 ? 5 : 7; if (!FORCES[draft.force]) draft.force = 'right';
-  put.zoom('half'); markZoom(); put.F(fieldOf(draft.field)); refitView();
-  put.tool(d.players.length > 1 ? 'select' : 'off');
+  resetZoom(); setField(fieldOf(draft.field)); refitView();
   fold(false); enterStudio(); armClose(false); armDelete(false); status(''); if (sheetLayout()) fold(true);
   setTool(tool); fillDetails(); fillStep(); renderEditor(); setTab(d.players.length > 1 ? 'step' : 'drill');
   updateState();
 }
 function leaveStudio(){
-  studio.hidden = true; document.body.classList.remove('editing'); put.mode('view'); $('#tray').hidden = true;
-  $('.stage').appendChild(svg); delete svg.dataset.tool; $('#g-handles').replaceChildren(); put.orient(screenOrient());
+  studio.hidden = true; document.body.classList.remove('editing'); setMode('view'); $('#tray').hidden = true;
+  $('.stage').appendChild(svg); delete svg.dataset.tool; $('#g-handles').replaceChildren(); setOrient(screenOrient());
 }
-function closeEditor(){ leaveStudio(); put.draft(null); put.dirty(false); }
-export function backToEditor(){ if (!draft) return; enterStudio(); renderEditor(); }
-
-/* field size, orientation and zoom */
-function editorView(){
-  if (zoom === 'full') return [0, F.L];
-  if (zoom === 'half') return [Math.round(F.L*.36), F.L];
-  return fitView || [0, F.L];
-}
-export function refitView(){
-  const xs = [];
-  const pl = timeDraft(draft); pl.players.forEach(p => { if (p.at) xs.push(p.at[0]); });
-  draft.steps.forEach(st => Object.values(st.moves || {}).forEach(m => (m.path || []).forEach(q => xs.push(q[0]))));
-  if (!xs.length){ put.fitView([0, F.L]); return; }
-  let x0 = Math.min(...xs) - 8, x1 = Math.max(...xs) + 8;
-  const minSpan = Math.min(44, F.L);
-  if (x1 - x0 < minSpan){ const c = (x0 + x1)/2; x0 = c - minSpan/2; x1 = c + minSpan/2; }
-  if (x0 < 0){ x1 -= x0; x0 = 0; } if (x1 > F.L){ x0 -= x1 - F.L; x1 = F.L; }
-  put.fitView([Math.max(0, Math.floor(x0)), Math.min(F.L, Math.ceil(x1))]);
-}
-// pick the orientation that draws the field biggest in the space available
-export function layoutField(force){
-  if (mode !== 'edit') return;
-  const o = screenOrient();
-  if (o !== orient || force){ const turned = o !== orient; put.orient(o); drawPitch(editorView()); if (draft){ if (turned) renderForms(); renderEditor(); } positionFlyout(); }
-}
-let roPending = false;
-new ResizeObserver(() => { if (roPending) return; roPending = true; requestAnimationFrame(() => { roPending = false; layoutField(false); positionFlyout(); }); }).observe(sfield);
-function markZoom(){ document.querySelectorAll('#zoom button').forEach(x => x.setAttribute('aria-pressed', x.dataset.z === zoom ? 'true' : 'false')); }
-$('#zoom').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
-  put.zoom(b.dataset.z); if (zoom === 'fit') refitView(); markZoom(); layoutField(true); });
+function closeEditor(){ leaveStudio(); endSession(); }
+// warning: shown in the hint line, for example when the drill list sent you back here
+export function backToEditor(warning){ if (!draft) return; enterStudio(); renderEditor(); if (warning) hint(warning, true); }
 
 $('#s-preview').addEventListener('click', () => {
   const play = timeDraft(draft);
@@ -98,8 +79,8 @@ $('#e-delete').addEventListener('click', async () => {
   if (!draft || !draft.docId) return;
   if (!delArmed){ armDelete(true); return; }
   armDelete(false);
-  const id = draft.docId;
-  try { await removeDrill(id); put.team(team.filter(x => x.id !== id)); buildNav(); closeEditor(); if (location.hash.slice(1) === id) location.hash = BUILTIN[0].id; else select(BUILTIN[0].id); }
+  const id = draft.docId, first = builtins()[0].id;
+  try { await removeDrill(id); dropEntry(id); buildNav(); closeEditor(); if (location.hash.slice(1) === id) location.hash = first; else select(first); }
   catch (err){ status(errText(err), true); }
 });
 // Save keeps you in the editor; Back to playback takes you to the saved drill
@@ -111,9 +92,8 @@ $('#s-save').addEventListener('click', async () => {
   $('#s-save').disabled = true; status('Saving…');
   try {
     await saveDrill(id, body);
-    const raw = readRaw(body), entry = {id, raw, play: {...timeDraft({...raw, id}), id}};
-    const i = team.findIndex(x => x.id === id); if (i >= 0) team[i] = entry; else team.push(entry);
-    draft.docId = id; draft.createdAt = body.createdAt; put.dirty(false);
+    saveEntry(entryFrom(id, body));
+    draft.docId = id; draft.createdAt = body.createdAt; setDirty(false);
     buildNav(); fillDetails(); status(storeMode === 'db' ? 'Saved for the team' : 'Saved in this browser');
   } catch (err){ status(errText(err), true); }
   finally { $('#s-save').disabled = false; }
@@ -123,3 +103,15 @@ function status(msg, err){
   if (msg) s.textContent = msg; else { s.classList.remove('err'); updateState(); }
   $('#e-status').textContent = err ? msg : ''; $('#e-status').classList.toggle('err', !!err);
 }
+
+/* ---------- editor wiring: what the lower editor modules announce, and what happens then ---------- */
+// the field was redrawn: the panels around it catch up
+on('editor-drawn', () => { renderStrip(); renderHint(); refreshStepExtras(); refreshDiscSelect(); renderSelPanel(); refreshThrowPanel(); });
+// undo or redo swapped the draft: it may even be on another field size
+on('draft-replaced', () => {
+  if (fieldOf(draft.field) !== F){ setField(fieldOf(draft.field)); layoutField(true); }
+  fillDetails(); fillStep(); renderEditor(); updateState();
+});
+// the formation pictures turn with the field
+on('field-turned', renderForms);
+on('tray-changed', renderTray);

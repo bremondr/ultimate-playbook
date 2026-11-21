@@ -1,22 +1,20 @@
-import { edPos, edStart, hint, labelOf, renderEditor } from './canvas.js';
-import { snapPt } from './drafts.js';
+/* ---------- selection and the Selected tab ---------- */
+import { currentFacing, edModel, edPos, renderEditor } from './canvas.js';
+import { hint } from './hint.js';
 import { commit } from './history.js';
 import { nearestAttacker, nextLabel, removePiece } from './pieces.js';
-import { setTab } from './tools.js';
-import { faceTarget } from '../model/facing.js';
+import { draft, es, labelOf, selIds, selPlayers, setSelIds, snapPt } from './session.js';
+import { setTab } from './tabs.js';
 import { FORCES, personOffset, uniqueId } from '../model/formation.js';
-import { discAt, facingDef, pos } from '../model/motion.js';
-import { draft, edModel, es, put, selIds } from '../state.js';
+import { pos } from '../model/motion.js';
 import { $, f2, newPid, r2 } from '../util.js';
 
 /* selection */
 export function setSel(ids, keepTab){
-  put.selIds(new Set(ids));
+  setSelIds(ids);
   if (selIds.size && !keepTab) setTab('sel');
   renderSelPanel();
 }
-export const isSel = id => selIds.has(id);
-export const selPlayers = () => draft.players.filter(p => selIds.has(p.id));
 
 /* selected panel */
 export function renderSelPanel(){
@@ -75,7 +73,7 @@ function arrange(kind){
     // the two players furthest apart set the line; everyone else gets an equal share of it
     let a = ps[0], b = ps[1], best = -1;
     ps.forEach(p => ps.forEach(q => { const d = Math.hypot(p.at[0]-q.at[0], p.at[1]-q.at[1]); if (d > best){ best = d; a = p; b = q; } }));
-    const dx = b.at[0]-a.at[0], dy = b.at[1]-a.at[1], L2 = dx*dx + dy*dy || 1;
+    const dx = b.at[0]-a.at[0], dy = b.at[1]-a.at[1];
     const sorted = ps.slice().sort((p, q) => ((p.at[0]-a.at[0])*dx + (p.at[1]-a.at[1])*dy) - ((q.at[0]-a.at[0])*dx + (q.at[1]-a.at[1])*dy));
     const A = a.at.slice();
     sorted.forEach((p, i) => { const u = i/(sorted.length-1); p.at = [r2(A[0] + dx*u), r2(A[1] + dy*u)]; });
@@ -87,7 +85,7 @@ $('#sel-del').addEventListener('click', () => deleteSelection());
 export function deleteSelection(){
   if (!selIds.size) return;
   const before = JSON.stringify(draft), n = selIds.size;
-  [...selIds].forEach(removePiece); put.selIds(new Set()); commit(before); renderEditor();
+  [...selIds].forEach(removePiece); setSelIds([]); commit(before); renderEditor();
   hint(`Deleted ${n} item${n > 1 ? 's' : ''}. Undo brings ${n > 1 ? 'them' : 'it'} back.`);
 }
 $('#sel-dup').addEventListener('click', () => {
@@ -102,7 +100,7 @@ $('#sel-dup').addEventListener('click', () => {
     if (p.face) c.face = p.face;
     draft.players.push(c); return c;
   });
-  commit(before); put.selIds(new Set(copies.map(c => c.id))); renderEditor();
+  commit(before); setSelIds(copies.map(c => c.id)); renderEditor();
   hint(`Duplicated ${copies.length}. The copies are selected, so you can drag them into place.`);
 });
 $('#sel-disc').addEventListener('click', () => { const ps = selPlayers(); if (ps.length !== 1) return;
@@ -127,12 +125,6 @@ $('#sel-face').addEventListener('change', e => {
     p.face = v;
   });
   commit(before); renderEditor(); });
-// field-coordinate facing (degrees, 0 = downfield) of a defender at the current editor time
-export function currentFacing(p){
-  const self = edPos(p.id), d = discAt(edModel, edStart());
-  const tg = faceTarget(self, facingDef(edModel, p, edStart()), edPos, d ? [d.x, d.y] : null);
-  return Math.round(Math.atan2(tg[1]-self[1], tg[0]-self[0]) * 180/Math.PI);
-}
 /* defender roles: free, follows one attacker, or marks (a row in turn, or whoever has the disc) */
 // the attackers standing in a line with `startId`, nearest first: along the field or across it, whichever holds more
 function rowOrder(startId){
@@ -169,7 +161,7 @@ $('#sel-addmark').addEventListener('click', () => {
   const a = selPlayers()[0]; if (!a || a.team !== 'O') return;
   const before = JSON.stringify(draft), order = rowOrder(a.id);
   const d = {id:newPid(), team:'D', mark:{mode: order.length > 1 ? 'row' : 'disc', order, force:draft.force || 'right'}};
-  draft.players.push(d); commit(before); put.selIds(new Set([d.id])); renderEditor();
+  draft.players.push(d); commit(before); setSelIds([d.id]); renderEditor();
   hint(order.length > 1 ? `Mark added on ${a.label}. After ${a.label} throws, they move to ${order.slice(1).map(labelOf).join(', then ')}.` : `Mark added. ${a.label} has nobody next to them in a row, so the mark follows whoever has the disc.`);
 });
 $('#sel-follow').addEventListener('change', e => {

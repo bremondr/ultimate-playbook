@@ -1,6 +1,5 @@
 /* ---------- where everyone and the disc are at time t ---------- */
 import { personOffset } from './formation.js';
-import { F } from '../state.js';
 import { clamp } from '../util.js';
 
 const ease = u => 0.5 - 0.5*Math.cos(Math.PI*Math.min(1,Math.max(0,u)));
@@ -38,7 +37,7 @@ export function facingDef(m, def, t){
   return g === '@spot' ? {...def, follow: undefined, spotPt: r.ev.spot} : {...def, follow: g || undefined};
 }
 export function pos(m, id, t, depth = 0){
-  const p = m.P[id];
+  const p = m.P[id], F = m.field;
   if (!p) return [F.L/2, F.W/2];
   if (p.def.mark && m.marks && m.marks[id] && depth < 4) return markPos(m, id, t, depth);
   if (p.def.follow && m.P[p.def.follow] && depth < 4){

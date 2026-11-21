@@ -1,0 +1,59 @@
+/* Self-contained features: QR code for share links, drill backup, presentation mode. */
+
+/* ---------- QR code (js/features/qr.js) ---------- */
+/* Always dark on white, also in dark mode: scanners expect it. */
+.qrbox{display:block;width:min(100%,260px);aspect-ratio:1;align-self:center;padding:0;border:1px solid var(--rule);border-radius:10px;background:#fff;cursor:zoom-in;overflow:hidden}
+.qrbox svg,.qrbig-code svg{display:block;width:100%;height:100%}
+#share-qr-big{align-self:center}
+.qrbig{position:fixed;inset:0;z-index:40;display:grid;place-items:center;background:color-mix(in srgb,var(--bg) 92%,transparent);
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.qrbig-card{display:flex;flex-direction:column;align-items:center;gap:10px;max-width:100%;max-height:100%}
+.qrbig h2{font-family:var(--display);font-weight:700;font-size:26px;text-transform:uppercase;margin:0;line-height:1.1;text-align:center}
+.qrbig p{margin:0;color:var(--muted);text-align:center}
+.qrbig-code{width:min(calc(100vw - 32px),calc(100vh - 190px),calc(100dvh - 190px));aspect-ratio:1;background:#fff;border-radius:12px;padding:8px;box-shadow:0 12px 32px rgba(0,0,0,.18)}
+.qrbig .primary{min-width:160px;min-height:44px}
+
+/* ---------- drill backup, in the drawer (js/features/backup.js) ---------- */
+.backup{display:flex;flex-direction:column;gap:8px;margin-top:auto;padding-top:14px;border-top:1px solid var(--rule)}
+.backup h2{font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0}
+.backup .ghost{font-size:14px}
+.backup .small:empty{display:none}
+
+/* ---------- presentation mode (js/features/present.js) ---------- */
+/* Only the field and a large step caption. The caption keeps a fixed height, so the field doesn't jump between steps. */
+#present[aria-pressed="true"]{background:var(--accent-soft)}
+@media (max-width:640px){ #present{display:none} }   /* no room in a phone's top bar; phones in landscape get it */
+.presctl{display:flex;align-items:center;gap:8px;flex:none}
+.presctl .preshint{margin-right:6px;white-space:nowrap}
+.presctl .ibtn{height:48px;min-width:48px;font-weight:600}
+body.presenting .app{grid-template-rows:minmax(0,1fr) auto}
+body.presenting .vbar,body.presenting .keyline,body.presenting .transport-row,body.presenting .pop,
+body.presenting .drawer,body.presenting .scrim{display:none!important}
+body.presenting .vstage{padding:12px 16px 6px}
+body.presenting .vfoot{flex-direction:row;align-items:center;gap:20px;padding:12px 20px 14px}
+body.presenting .cap{flex:1;min-width:0;height:150px}
+body.presenting .capline b{font-size:20px}
+body.presenting .capline span{font-family:var(--display);font-weight:700;font-size:34px;line-height:1.1;text-transform:uppercase}
+body.presenting .cap p{font-size:21px;line-height:1.4;margin-top:6px}
+body.presenting .cap small{font-size:16px;margin-top:4px}
+@media (max-width:640px), (orientation:portrait) and (max-width:900px){
+  body.presenting .vfoot{flex-direction:column-reverse;align-items:stretch;gap:8px;padding:10px 14px 12px}
+  body.presenting .presctl{justify-content:flex-end}
+  body.presenting .presctl .preshint{margin-right:auto}
+  body.presenting .cap{height:180px}
+  body.presenting .capline span{font-size:26px}
+  body.presenting .cap p{font-size:18px}
+}
+@media (max-width:640px){
+  body.presenting .cap{height:170px}
+  body.presenting .capline span{font-size:22px}
+  body.presenting .cap p{font-size:16px}
+  .presctl .ibtn span{display:none}
+}
+@media (max-height:500px) and (orientation:landscape){   /* phones on their side: keep most of the height for the field */
+  body.presenting .vfoot{padding:6px 16px 8px}
+  body.presenting .cap{height:84px}
+  body.presenting .capline span{font-size:22px}
+  body.presenting .cap p{font-size:15px;margin-top:2px}
+  body.presenting .presctl .preshint{display:none}
+}

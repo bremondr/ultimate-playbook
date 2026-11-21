@@ -6,6 +6,14 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#1E6B39">
 <title>Ultimate Playbook</title>
+<!-- feature: install on the home screen, work offline (manifest.webmanifest, sw.js, js/pwa.js) -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Playbook">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="application-name" content="Ultimate Playbook">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
@@ -14,6 +22,7 @@
 <link rel="stylesheet" href="css/player.css">
 <link rel="stylesheet" href="css/shared.css">
 <link rel="stylesheet" href="css/studio.css">
+<link rel="stylesheet" href="css/features.css"><!-- QR code, backup, presentation mode -->
 </head>
 <body>
 <div class="app" id="app">
@@ -23,6 +32,8 @@
     <span class="sp"></span>
     <button class="ibtn" id="info" type="button" aria-expanded="false" aria-controls="info-pop" title="About this drill"><svg viewBox="0 0 24 24"><path d="M11 10h2v7h-2zm0-3h2v2h-2zm1-5a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/></svg></button>
     <button class="ibtn" id="share" type="button" aria-expanded="false" aria-controls="share-pop" title="Share a link to this drill"><svg viewBox="0 0 24 24"><path d="M18 16a3 3 0 0 0-2.4 1.2l-6.7-3.4a3 3 0 0 0 0-1.6l6.7-3.4A3 3 0 1 0 15 7c0 .3 0 .5.1.8L8.4 11.2a3 3 0 1 0 0 3.6l6.7 3.4A3 3 0 1 0 18 16z"/></svg></button>
+    <!-- feature: presentation mode (js/features/present.js) -->
+    <button class="ibtn" id="present" type="button" aria-pressed="false" title="Present: only the field and the step, full screen"><svg viewBox="0 0 24 24"><path d="M3 4h18a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-8v2h3v2H8v-2h3v-2H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm1 2v9h16V6zm6 1.5 5 3-5 3z"/></svg></button>
     <button class="ibtn" id="opts" type="button" aria-expanded="false" aria-controls="opts-pop" title="Playback options"><svg viewBox="0 0 24 24"><path d="M3 17h6v2H3zm0-12h10v2H3zm8 14v-2h10v-2H11v-2H9v6zM7 9v2H3v2h4v2h2V9zm14 4v-2H11v2zm-6-4h2V7h4V5h-4V3h-2z"/></svg></button>
     <button class="pill" id="act" type="button" hidden></button>
   </header>
@@ -49,6 +60,10 @@
     <input id="share-link" readonly aria-label="Link to this drill" class="sharelink">
     <div class="btnrow"><button class="primary" id="share-copy" type="button">Copy link</button><button class="ghost" id="share-native" type="button" hidden>Share…</button></div>
     <p class="small" id="share-status" role="status"></p>
+    <!-- feature: QR code of the link (js/features/qr.js) -->
+    <button class="qrbox" id="share-qr" type="button" title="Show the QR code larger" hidden></button>
+    <p class="small" id="share-qr-note" hidden>This link is too long for a QR code. Send the link instead.</p>
+    <button class="ghost" id="share-qr-big" type="button" hidden><svg viewBox="0 0 24 24" class="ico"><path d="M4 4h6v2H6v4H4zm10 0h6v6h-2V6h-4zM4 14h2v4h4v2H4zm14 4v-4h2v6h-6v-2z"/></svg>Show QR code larger</button>
   </div>
   <div class="pop right" id="opts-pop" hidden>
     <h3>Playback</h3>
@@ -100,6 +115,12 @@
       </div>
       <div class="time" id="time">0.0 / 0.0 s</div>
     </div>
+    <!-- feature: presentation mode controls (js/features/present.js) -->
+    <div class="presctl" id="pres-ctl" hidden>
+      <span class="small preshint">Tap the field for the next step</span>
+      <button class="ibtn wide" id="pres-back" type="button" title="Step back (←)"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg><span>Step back</span></button>
+      <button class="ibtn wide" id="pres-exit" type="button" title="Leave presentation (Esc)"><svg viewBox="0 0 24 24"><path d="M18.3 7.1 16.9 5.7 12 10.6 7.1 5.7 5.7 7.1l4.9 4.9-4.9 4.9 1.4 1.4 4.9-4.9 4.9 4.9 1.4-1.4-4.9-4.9z"/></svg><span>Exit</span></button>
+    </div>
   </footer>
 
   <div class="scrim" id="scrim" hidden></div>
@@ -116,7 +137,27 @@
     </div>
     <nav class="groups" id="nav" aria-label="Plays and drills"></nav>
     <p class="sync" id="sync"></p>
+    <!-- feature: back up and restore drills (js/features/backup.js) -->
+    <section class="backup" aria-labelledby="backup-h">
+      <h2 id="backup-h">Backup</h2>
+      <div class="btnrow">
+        <button class="ghost" id="backup-save" type="button"><svg viewBox="0 0 24 24" class="ico"><path d="M5 20h14v-2H5zm7-3 6-6-1.4-1.4L13 13.2V4h-2v9.2L7.4 9.6 6 11z"/></svg>Back up to a file</button>
+        <button class="ghost" id="backup-load" type="button"><svg viewBox="0 0 24 24" class="ico"><path d="M5 20h14v-2H5zm7-16-6 6 1.4 1.4L11 7.8V17h2V7.8l3.6 3.6L18 10z"/></svg>Restore from a file</button>
+      </div>
+      <input type="file" id="backup-file" accept=".json,application/json" hidden>
+      <p class="small" id="backup-status" role="status"></p>
+    </section>
   </aside>
+</div>
+
+<!-- feature: large QR code view (js/features/qr.js) -->
+<div class="qrbig" id="qr-big" role="dialog" aria-modal="true" aria-labelledby="qr-big-title" hidden>
+  <div class="qrbig-card">
+    <h2 id="qr-big-title">Scan to open this drill</h2>
+    <p id="qr-big-name"></p>
+    <div class="qrbig-code" id="qr-big-code"></div>
+    <button class="primary" id="qr-big-close" type="button">Close</button>
+  </div>
 </div>
 
 <div class="studio" id="studio" hidden>

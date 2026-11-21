@@ -1,4 +1,3 @@
-/* where a defender faces: their player, the disc, or straight up/down the field */
 /* Where a defender looks. Nobody watches the disc unless you choose "The disc":
    auto  = the player they follow or mark (a mark waiting on the handler spot looks at that spot);
            a free defender keeps looking upfield

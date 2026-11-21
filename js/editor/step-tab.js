@@ -1,9 +1,37 @@
-import { hint, labelOf, renderEditor, stepWarn } from './canvas.js';
+/* ---------- steps: the step strip under the field, and the Step tab (title, note, length, the step's throw) ---------- */
+import { edPlay, renderEditor, stepWarn } from './canvas.js';
+import { clearHint, hint } from './hint.js';
 import { commit } from './history.js';
-import { setStep } from './tools.js';
-import { curveOf, GRIPS, OVER_GRIPS, typeOf } from '../model/throws.js';
-import { draft, edPlay, es } from '../state.js';
+import { setTool } from './rail.js';
+import { draft, es, labelOf, setEs, setPendingThrow, tool } from './session.js';
+import { setTab } from './tabs.js';
+import { fillThrowControls, wireThrowControls } from './tools/throw.js';
 import { $ } from '../util.js';
+
+export function setStep(i){ setEs(i); setPendingThrow(null); clearHint(); fillStep(); renderEditor(); setTab('step'); }
+
+/* the step strip */
+export function renderStrip(){
+  const s = $('#strip'); s.replaceChildren();
+  const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = 'Steps'; s.appendChild(lbl);
+  const mk = (text, i, warn, title) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'sbtn'; b.textContent = text; b.title = title || '';
+    b.setAttribute('aria-current', es === i ? 'true' : 'false');
+    if (warn){ const dt = document.createElement('i'); dt.className = 'dot'; b.appendChild(dt); b.title += ' (throw needs fixing)'; }
+    b.addEventListener('click', () => setStep(i)); s.appendChild(b);
+  };
+  mk('Setup', -1, false, 'Starting positions');
+  draft.steps.forEach((st, i) => mk(String(i+1), i, stepWarn(i), edPlay.steps[i].title));
+  const add = document.createElement('button'); add.type = 'button'; add.className = 'sbtn add'; add.textContent = '+ Add step';
+  add.addEventListener('click', () => {
+    const before = JSON.stringify(draft), at = es < 0 ? draft.steps.length : es + 1;
+    draft.steps.splice(at, 0, {title:'', note:'', dur:null, moves:{}, throw:null});
+    // the tools that add players work on the setup; keep one that works on the new step
+    commit(before); if (!['select','throw','erase'].includes(tool)) setTool('select');
+    setStep(at);
+  });
+  s.appendChild(add);
+}
 
 /* step tab */
 export function fillStep(){
@@ -35,22 +63,7 @@ $('#e-rmstep').addEventListener('click', () => {
   setStep(Math.min(es, draft.steps.length - 1));
 });
 
-/* throws: the Step tab edits this step's throw; the tray sets up the next one */
-export let throwDefaults = {grip:'', curve:0, fake:''};
-export function newThrow(from, to){
-  const th = {from, to, curve: throwDefaults.curve};
-  if (throwDefaults.grip) th.grip = throwDefaults.grip;
-  if (throwDefaults.fake) th.fake = throwDefaults.fake;
-  th.type = typeOf(th); return th;
-}
-export function fillThrowControls(prefix, src){
-  const sel_ = $(`#${prefix}-grip`);
-  if (!sel_.options.length){ sel_.add(new Option('Not specified', '')); for (const k in GRIPS) sel_.add(new Option(GRIPS[k], k)); }
-  sel_.value = src.grip && GRIPS[src.grip] ? src.grip : '';
-  const cv = src.from ? curveOf(src) : src.curve, fl = Math.abs(cv) < .03 ? 0 : cv < 0 ? -1 : 1;
-  document.querySelectorAll(`#${prefix}-flight button`).forEach(b => b.setAttribute('aria-pressed', +b.dataset.fl === fl ? 'true' : 'false'));
-  $(`#${prefix}-fake`).value = src.fake || '';
-}
+/* this step's throw, with the same controls as the Throw tool's options */
 export function refreshThrowPanel(){
   if (es < 0) return;
   const th = draft.steps[es].throw;
@@ -58,21 +71,10 @@ export function refreshThrowPanel(){
   $('#tb-title').textContent = th ? `Throw: ${labelOf(th.from)} → ${labelOf(th.to)}` : 'Throw';
   if (th) fillThrowControls('tb', th);
 }
-function wireThrowControls(prefix, target){
-  const apply = fn => {
-    const th = target();
-    if (!th){ fn(throwDefaults); fillThrowControls(prefix, throwDefaults); return; }
-    const before = JSON.stringify(draft); fn(th); th.type = typeOf(th); commit(before); renderEditor();
-  };
-  $(`#${prefix}-grip`).addEventListener('change', e => apply(t => { if (e.target.value) t.grip = e.target.value; else delete t.grip; }));
-  $(`#${prefix}-flight`).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
-    apply(t => { t.curve = +b.dataset.fl * (OVER_GRIPS.includes(t.grip) ? .1 : .14); }); });
-  $(`#${prefix}-fake`).addEventListener('change', e => apply(t => { if (e.target.value) t.fake = e.target.value; else delete t.fake; }));
-}
 wireThrowControls('tb', () => es >= 0 ? draft.steps[es].throw : null);
-wireThrowControls('nt', () => null);
 $('#tb-remove').addEventListener('click', () => { if (es < 0 || !draft.steps[es].throw) return; const before = JSON.stringify(draft); draft.steps[es].throw = null; commit(before); renderEditor(); });
 
+/* Setup: who starts with the disc */
 let discSig = '';
 export function refreshDiscSelect(force){
   const os = draft.players.filter(p => p.team === 'O');

@@ -1,8 +1,7 @@
-/* ---------- built-in plays and drills ---------- */
-import { angelDrill } from './angel.js';
-import { r2 } from '../util.js';
-
-export const BUILTIN = [
+/* ---------- built-in plays: plain data, timed by hand ----------
+   library.js finishes them the first time the library is used (attacker labels, field, defender spacing) and adds
+   the angel drills from angel.js. */
+export const PLAYS = [
 {
   id:'vert-stack', kind:'Play', name:'Vertical stack: under & deep',
   summary:'Front of the stack cuts under to the open side, back of the stack goes deep into the space the stack kept clear.',
@@ -108,6 +107,3 @@ export const BUILTIN = [
   ]
 }
 ];
-// defenders are drawn with arms out, so give them a little more room than the bare offsets
-BUILTIN.forEach(p => { p.field = 'full'; p.format = 7; p.players.forEach(q => { if (q.team === 'O') q.label = q.id; if (q.offset) q.offset = q.offset.map(v => r2(v*1.45)); }); });
-BUILTIN.push(angelDrill('basic'), angelDrill('break'));

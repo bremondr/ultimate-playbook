@@ -1,6 +1,6 @@
 /* ---------- the field: turf, lines, end zones, distance marks ---------- */
 import { el, lineM, M, rectM, svg } from './svg.js';
-import { F, orient } from '../state.js';
+import { F, orient } from './view.js';
 import { $, f2 } from '../util.js';
 
 export function drawPitch(view){
