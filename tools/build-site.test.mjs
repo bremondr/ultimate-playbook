@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
-import { build, buildInfo, eligiblePreviews, localReferences, previewIndexHtml, previewsIndexHtml, runtimeSource, STUB_SERVICE_WORKER } from './build-site.mjs';
+import { build, buildInfo, contentVersion, stampServiceWorker, eligiblePreviews, localReferences, previewIndexHtml, previewsIndexHtml, runtimeSource, STUB_SERVICE_WORKER } from './build-site.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE = fs.readFileSync(path.join(HERE, 'preview-runtime.js'), 'utf8');
@@ -109,4 +109,17 @@ test('the cap counts built previews only', () => {
   } finally {
     fs.rmSync(out, {recursive: true, force: true});
   }
+});
+
+test('the live service worker gets its version and file list from what is published', () => {
+  const sw = "const VERSION = 'v2';\nconst APP_FILES = [\n  './',\n  './old.js'\n];\nself.x = 1;\n";
+  const out = stampServiceWorker(sw, 'abc123', ['js/b.js', 'index.html', 'sw.js', 'css/a.css']);
+  assert.match(out, /const VERSION = 'abc123';/);
+  assert.ok(out.includes("const APP_FILES = [\n  './',\n  './css/a.css',\n  './index.html',\n  './js/b.js'\n];"));
+  assert.ok(!out.includes('old.js') && !out.includes("'./sw.js'") && out.endsWith('self.x = 1;\n'));
+  assert.throws(() => stampServiceWorker('nothing here', 'x', []));
+  const a = contentVersion([['a.js', 'one'], ['b.js', 'two']]);
+  assert.equal(a, contentVersion([['b.js', 'two'], ['a.js', 'one']]), 'order does not matter');
+  assert.notEqual(a, contentVersion([['a.js', 'one!'], ['b.js', 'two']]), 'content does');
+  assert.notEqual(a, contentVersion([['a.js', 'one'], ['c.js', 'two']]), 'names do');
 });

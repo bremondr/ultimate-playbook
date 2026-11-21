@@ -37,14 +37,7 @@ The service worker runs only on http(s) (GitHub Pages, or a local server), not w
 
 ### Releasing a new version
 
-`sw.js` serves the stored files first, so a change reaches people only when the service worker changes:
-
-1. In `sw.js`, bump `VERSION` (for example `'v1'` to `'v2'`) whenever any app file changes. The new service worker stores the new files and deletes the old cache; the next visit after that shows the new version. (`index.html` itself is fetched from the network first, but the scripts and styles it loads come from the cache until `VERSION` changes.)
-2. If you add, rename or remove a file, update `APP_FILES` in `sw.js` too. This lists any app file that's missing from it:
-
-   ```sh
-   git ls-files css js icons index.html manifest.webmanifest | while read f; do grep -q "'./$f'" sw.js || echo "missing: $f"; done
-   ```
+Nothing to do by hand. `sw.js` serves the stored files first, so people get a change only when the service worker itself changes; the site build (`tools/build-site.mjs`) therefore writes `VERSION` (a hash of every published file) and `APP_FILES` (the list of them) into the published `sw.js`. Any change to an app file gives a new version: the new service worker stores the new files and deletes the old cache, and the next visit shows the new version. (`index.html` is fetched from the network first anyway.) The values in the repository's `sw.js` are only used when the folder is served as it is, for local testing.
 
 ## Project structure
 
