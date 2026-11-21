@@ -123,3 +123,14 @@ test('the live service worker gets its version and file list from what is publis
   assert.notEqual(a, contentVersion([['a.js', 'one!'], ['b.js', 'two']]), 'content does');
   assert.notEqual(a, contentVersion([['a.js', 'one'], ['c.js', 'two']]), 'names do');
 });
+
+test('the preview tab’s Feedback link falls back to a new issue about the preview', () => {
+  const sandbox = {};
+  vm.runInNewContext(runtimeSource(TEMPLATE, buildInfo({name: 'pr-2', label: 'PR #2', sha: 'abcdef1234'})), sandbox);
+  const win = {location: {href: 'https://x.github.io/app/preview/pr-2/#box'}, navigator: {userAgent: 'UA'}, innerWidth: 820, innerHeight: 1180};
+  const url = new URL(sandbox.__playbookPreview.feedbackUrl(sandbox.PLAYBOOK_PREVIEW, win));
+  assert.equal(url.origin + url.pathname, 'https://github.com/bremondr/ultimate-playbook/issues/new');
+  assert.equal(url.searchParams.get('labels'), 'feedback');
+  assert.equal(url.searchParams.get('title'), 'Feedback on preview PR #2');
+  assert.match(url.searchParams.get('body'), /- Where: Preview PR #2 \(commit abcdef1\)\n- Page: https:\/\/x\.github\.io\/app\/preview\/pr-2\/#box\n- Screen: 820 × 1180 px/);
+});

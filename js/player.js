@@ -11,7 +11,7 @@ import { drawFake, drawThrow, faceAngle, makeCone, makePlayer, placeDisc } from 
 import { drawPitch } from './render/pitch.js';
 import { dPath, el, M, svg } from './render/svg.js';
 import { mode, orient, setField, setOrient } from './render/view.js';
-import { readShared } from './share.js';
+import { readShared, splitTime } from './share.js';
 import { canWrite, entryFrom, errText, saveDrill, serialize, storeMode } from './storage.js';
 import { $, f2, newDocId, screenOrient } from './util.js';
 
@@ -91,13 +91,20 @@ export function fitCaption(){
   cap.style.height = Math.ceil(h) + 'px';
 }
 
-export function select(id){
-  if (id && id.startsWith('d=')){ openShared(id.slice(2)); return; }
+// hash: the part of the address after #, a drill id or a packed drill, optionally with a time (share.js, splitTime)
+export function select(hash){
+  const {id, t: at} = splitTime(hash);
+  if (id && id.startsWith('d=')){ openShared(id.slice(2), at); return; }
   const entries = libEntries();
   let e = entries.find(x => x.id === id);
+  const found = !!e;
   if (!e){ if (id && storeMode === 'pending') pendingId = id; e = entries[0]; }
   showPlay(e.play, {source:e.source, id:e.id});
+  if (found && at !== null) seek(at);
 }
+// where playback is: the time on screen, in seconds (Send feedback reads it)
+export const playhead = () => t;
+function seek(at){ t = Math.min(model.total, at); endHold = 0; render(); }
 export function showPlay(play, meta){
   if (playing) setPlaying(false);
   stopAt = null; current = meta;
@@ -148,10 +155,11 @@ $('#act').addEventListener('click', () => {
 export function leavePlayback(){ setPlaying(false); current = null; }
 
 // a drill packed into a #d= link
-async function openShared(packed){
+async function openShared(packed, at){
   try {
     sharedRaw = await readShared(packed);
     showPlay({...timeDraft({...sharedRaw, id:'shared'}), id:'shared'}, {source:'shared', id:'shared'});
+    if (at !== null) seek(at);
   } catch (err){
     const first = builtins()[0];
     showPlay(first, {source:'builtin', id:first.id});

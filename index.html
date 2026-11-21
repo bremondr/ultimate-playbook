@@ -22,7 +22,8 @@
 <link rel="stylesheet" href="css/player.css">
 <link rel="stylesheet" href="css/shared.css">
 <link rel="stylesheet" href="css/studio.css">
-<link rel="stylesheet" href="css/features.css"><!-- QR code, backup, presentation mode -->
+<link rel="stylesheet" href="css/features.css"><!-- QR code, backup, presentation mode, feedback -->
+<link rel="stylesheet" href="js/vendor/feedback-kit/feedback-kit.css"><!-- Send feedback panel (js/vendor/feedback-kit/, from web-kit) -->
 </head>
 <body>
 <div class="app" id="app">
@@ -74,6 +75,8 @@
     <label class="check"><input type="checkbox" id="t-arrows" checked> Show arrows</label>
     <label class="check" id="l-def"><input type="checkbox" id="t-def" checked> Show defense</label>
     <p class="small keys"><kbd>Space</kbd> play · <kbd>←</kbd> <kbd>→</kbd> step</p>
+    <!-- feature: send feedback (js/features/feedback.js) -->
+    <button class="link" id="opts-feedback" type="button">Send feedback about what’s on screen</button>
   </div>
 
   <main class="vstage stage" id="vstage">
@@ -306,6 +309,8 @@
           </div>
           <p class="small" id="e-status" role="status"></p>
           <button class="link danger" id="e-delete" type="button" hidden>Delete this drill</button>
+          <!-- feature: send feedback (js/features/feedback.js) -->
+          <button class="link" id="e-feedback" type="button">Send feedback about the editor</button>
         </div>
       </div>
     </aside>

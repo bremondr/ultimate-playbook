@@ -53,6 +53,8 @@ const APP_FILES = [
   './js/editor/viewport.js',
   './js/events.js',
   './js/features/backup.js',
+  './js/features/feedback-issue.js',
+  './js/features/feedback.js',
   './js/features/present.js',
   './js/features/qr.js',
   './js/library.js',
@@ -75,7 +77,12 @@ const APP_FILES = [
   './js/render/view.js',
   './js/share.js',
   './js/storage.js',
-  './js/util.js'
+  './js/util.js',
+  './js/vendor/feedback-kit/feedback-kit.css',
+  './js/vendor/feedback-kit/issue.js',
+  './js/vendor/feedback-kit/kit.js',
+  './js/vendor/feedback-kit/picture.js',
+  './js/vendor/feedback-kit/sketch.js'
 ];
 
 self.addEventListener('install', e => {
@@ -109,9 +116,11 @@ async function cacheFirst(req){
   if (res.ok){ const cache = await caches.open(CACHE); cache.put(req, res.clone()); }
   return res;
 }
-// stored copy at once, refreshed in the background for next time
+// stored copy at once, refreshed in the background for next time. The page's stylesheet <link> stores an opaque copy,
+// which a CORS request (Send feedback reading the font for its picture) can't use: that waits for the network instead.
 async function staleWhileRevalidate(req){
-  const cache = await caches.open(FONT_CACHE), hit = await cache.match(req);
+  const cache = await caches.open(FONT_CACHE), stored = await cache.match(req);
+  const hit = stored && !(stored.type === 'opaque' && req.mode === 'cors') ? stored : null;
   const fresh = fetch(req).then(res => { if (res.ok || res.type === 'opaque') cache.put(req, res.clone()); return res; }).catch(() => null);
   return hit || (await fresh) || Response.error();
 }

@@ -20,6 +20,7 @@ on('back-to-editor', backToEditor);
 import './features/qr.js';
 import './features/backup.js';
 import './features/present.js';
+import './features/feedback.js';
 import './pwa.js';
 
 /* ---------- keys and window events ---------- */

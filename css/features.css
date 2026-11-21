@@ -1,4 +1,4 @@
-/* Self-contained features: QR code for share links, drill backup, presentation mode. */
+/* Self-contained features: QR code for share links, drill backup, presentation mode, send feedback. */
 
 /* ---------- QR code (js/features/qr.js) ---------- */
 /* Always dark on white, also in dark mode: scanners expect it. */
@@ -56,3 +56,10 @@ body.presenting .cap small{font-size:16px;margin-top:4px}
   body.presenting .cap p{font-size:15px;margin-top:2px}
   body.presenting .presctl .preshint{display:none}
 }
+
+/* ---------- send feedback (js/features/feedback.js; the panel is js/vendor/feedback-kit/feedback-kit.css) ---------- */
+/* the kit's panel in the app's colours and fonts, above the editor too */
+:root{--fk-surface:var(--raised);--fk-ink:var(--ink);--fk-muted:var(--muted);--fk-rule:var(--rule);--fk-accent:var(--accent);
+  --fk-on-accent:var(--on-accent);--fk-warn:var(--warn);--fk-stage:var(--bg);--fk-font:var(--body);--fk-display:var(--display);--fk-z:45}
+#opts-feedback{margin-top:4px}
+#e-feedback{margin-top:8px}
