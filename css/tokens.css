@@ -1,0 +1,25 @@
+/* Colour, type and dark-mode tokens. */
+/* Layout: coach's clipboard — play list rail, field stage in the middle, step notes (or the editor inspector) beside it. Field rotates to vertical (attack up) on phones. */
+:root{
+  --bg:#ECF0E9; --surface:#F7F9F5; --raised:#FFFFFF; --ink:#152019; --muted:#5A695E; --rule:#D2DACE;
+  --accent:#1E6B39; --accent-soft:#DCEBDD; --on-accent:#FFFFFF; --warn:#B4500F; --danger:#B42318;
+  --turf:#3E8A4D; --turf2:#3A8248; --endzone:#2F7340; --chalk:#F3F7F0; --label:#5A695E;
+  --off:#FFD23F; --off-ink:#2B2200; --def:#E0457B; --over:#9FE0FF; --cone:#FF7A1A; --disc:#FFFFFF; --shadow:rgba(10,30,15,.35);
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1410; --surface:#151D17; --raised:#1B251E; --ink:#E5ECE4; --muted:#91A194; --rule:#28342B;
+    --accent:#5DC27C; --accent-soft:#1E3324; --on-accent:#08130C; --warn:#FF9A55; --danger:#FF7B6E;
+    --turf:#2C6639; --turf2:#295F35; --endzone:#235430; --chalk:#E0E8DD; --label:#91A194;
+    --shadow:rgba(0,0,0,.5); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1410; --surface:#151D17; --raised:#1B251E; --ink:#E5ECE4; --muted:#91A194; --rule:#28342B;
+  --accent:#5DC27C; --accent-soft:#1E3324; --on-accent:#08130C; --warn:#FF9A55; --danger:#FF7B6E;
+  --turf:#2C6639; --turf2:#295F35; --endzone:#235430; --chalk:#E0E8DD; --label:#91A194;
+  --shadow:rgba(0,0,0,.5); color-scheme:dark;
+}
