@@ -121,6 +121,16 @@
     </div>
     <nav class="groups" id="nav" aria-label="Plays and drills"></nav>
     <p class="sync" id="sync"></p>
+    <!-- feature: back up and restore drills (js/features/backup.js) -->
+    <section class="backup" aria-labelledby="backup-h">
+      <h2 id="backup-h">Backup</h2>
+      <div class="btnrow">
+        <button class="ghost" id="backup-save" type="button"><svg viewBox="0 0 24 24" class="ico"><path d="M5 20h14v-2H5zm7-3 6-6-1.4-1.4L13 13.2V4h-2v9.2L7.4 9.6 6 11z"/></svg>Back up to a file</button>
+        <button class="ghost" id="backup-load" type="button"><svg viewBox="0 0 24 24" class="ico"><path d="M5 20h14v-2H5zm7-16-6 6 1.4 1.4L11 7.8V17h2V7.8l3.6 3.6L18 10z"/></svg>Restore from a file</button>
+      </div>
+      <input type="file" id="backup-file" accept=".json,application/json" hidden>
+      <p class="small" id="backup-status" role="status"></p>
+    </section>
   </aside>
 </div>
 

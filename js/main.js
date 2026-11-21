@@ -17,6 +17,7 @@ import './editor/pointer.js';
 import './editor/text-fields.js';
 /* features, each self-contained in its own file */
 import './features/qr.js';
+import './features/backup.js';
 
 /* ---------- keys and window events ---------- */
 document.addEventListener('keydown', e => {

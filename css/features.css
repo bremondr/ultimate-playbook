@@ -12,3 +12,9 @@
 .qrbig p{margin:0;color:var(--muted);text-align:center}
 .qrbig-code{width:min(calc(100vw - 32px),calc(100vh - 190px),calc(100dvh - 190px));aspect-ratio:1;background:#fff;border-radius:12px;padding:8px;box-shadow:0 12px 32px rgba(0,0,0,.18)}
 .qrbig .primary{min-width:160px;min-height:44px}
+
+/* ---------- drill backup, in the drawer (js/features/backup.js) ---------- */
+.backup{display:flex;flex-direction:column;gap:8px;margin-top:auto;padding-top:14px;border-top:1px solid var(--rule)}
+.backup h2{font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0}
+.backup .ghost{font-size:14px}
+.backup .small:empty{display:none}
