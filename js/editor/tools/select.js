@@ -5,7 +5,7 @@
 import { edPos, renderEditor } from '../canvas.js';
 import { hint } from '../hint.js';
 import { commit } from '../history.js';
-import { draft, es, isSel, selIds, setSelIds, snapPt } from '../session.js';
+import { draft, es, isSel, labelOf, selIds, setSelIds, snapPt } from '../session.js';
 import { setSel } from '../selection.js';
 import { setTab } from '../tabs.js';
 import { el, M } from '../../render/svg.js';
@@ -27,9 +27,39 @@ function startRuns(ids, raw, before, anchor){
     old:Object.fromEntries(ps.map(p => [p.id, draft.steps[es].moves[p.id] ? clone(draft.steps[es].moves[p.id]) : null])), before, created:false};
 }
 
+/* Pieces on top of each other: a tap selects the one on top, and each tap after that on the same spot selects the
+   next one down (and round again). A drag still moves the one selected. */
+function describe(id){
+  const p = draft.players.find(q => q.id === id); if (!p) return '';
+  if (p.team === 'O') return `Attacker ${p.label}`;
+  if (p.team === 'cone') return 'A cone';
+  const on = p.follow || (p.mark && (p.mark.order || [])[0]);
+  return on ? `The defender on ${labelOf(on)}` : 'A defender';
+}
+function stackHint(id, stack){
+  hint(`${describe(id)} selected. ${stack.length} are on this spot: tap again for the next one.`);
+}
+function pickInStack(id, stack){ setSel([id]); stackHint(id, stack); }
+
 /* Pointer down returns the drag it starts, if any; move and up then get that drag back. Drag types: 'rot' (turn a
    defender), 'wp' (a point of a run), 'move' (setup), 'runs' (a step), 'box' (select by box). */
-function down({kind, id, idx, raw, pt, before, additive, capture}){
+function down(ctx){
+  const {kind, additive, stack = []} = ctx;
+  if ((kind === 'player' || kind === 'cone') && !additive && stack.length > 1){
+    const cur = selIds.size === 1 ? [...selIds][0] : null, at = cur ? stack.indexOf(cur) : -1;
+    if (at >= 0){
+      // the selected piece is in the pile: a drag moves it, a tap goes on to the next one (see up)
+      const next = stack[(at + 1) % stack.length], d = pieceDown({...ctx, id: cur});
+      if (d){ d.cycle = {next, stack}; return d; }
+      pickInStack(next, stack); return null;
+    }
+    const d = pieceDown(ctx);
+    if (isSel(ctx.id)) stackHint(ctx.id, stack);
+    return d;
+  }
+  return pieceDown(ctx);
+}
+function pieceDown({kind, id, idx, raw, pt, before, additive, capture}){
   if (kind === 'rot'){ capture(); return {type:'rot', id, before}; }
   if (kind === 'wp' && es >= 0){ capture(); return {type:'wp', id, idx, before}; }
   if (kind === 'mid' && es >= 0){ draft.steps[es].moves[id].path.splice(idx, 0, pt); capture(); return {type:'wp', id, idx, before, inserted:true, moved:false}; }
@@ -89,6 +119,10 @@ function move(drag, raw, pt){
 }
 
 function up(d0){
+  if (d0.cycle && !(d0.type === 'move' ? d0.moved : d0.created)){
+    // a tap, not a drag (so nothing moved): select the next piece in the pile
+    pickInStack(d0.cycle.next, d0.cycle.stack); renderEditor(); return;
+  }
   if (d0.type === 'box'){
     const moved = Math.hypot(d0.end[0]-d0.start[0], d0.end[1]-d0.start[1]) > .6;
     if (!moved && !d0.additive) setSelIds([]);
