@@ -26,6 +26,7 @@ Built in: vertical stack, horizontal stack, dump & swing, go-to drill, box drill
 - **Defense**: a defender can be free, follow an attacker, or mark: each player in a row, only the handler spot, or whoever has the disc. Each mark has a force (left, straight up, right). Facing can follow their player, watch the disc, or be fixed with the rotate handle.
 - **Drill tab**: 7 v 7 or 5 v 5, full field (100 × 37 m) or small field (75 × 25 m), formations (vertical stack, vertical stack with dump, horizontal stack, side stack) and person defense with a force.
 - Keyboard: V O D G C T E switch tools, Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z redo, Ctrl/Cmd+S save, arrows nudge.
+- **Pieces on top of each other**: with Select, the first tap picks the one on top and each further tap on the same spot picks the next one underneath. The hint says how many are there.
 
 Drills you draw are saved in this browser (local storage). To move them all to another device or browser, open **Drills** and use **Back up to a file** at the bottom of the list, then **Restore from a file** on the other device. Restoring adds the drills in the file: drills you already have are skipped, and a different drill with the same id is added as a copy, so nothing is overwritten. To send a single drill, share its link.
 

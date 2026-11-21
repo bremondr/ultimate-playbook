@@ -20,6 +20,12 @@ function toField(e){
   const q = pt.matrixTransform(svg.getScreenCTM().inverse());
   return orient === 'h' ? [q.x, q.y] : [-q.y, q.x];
 }
+// every player and cone under the pointer, the one drawn on top first (so a tool can reach those hidden underneath)
+function stackAt(e){
+  const ids = document.elementsFromPoint(e.clientX, e.clientY)
+    .map(n => n.closest && n.closest('#g-players [data-kind="player"], #g-cones [data-kind="cone"]')).filter(Boolean).map(n => n.dataset.id);
+  return [...new Set(ids)];
+}
 svg.addEventListener('pointerdown', e => {
   if (mode !== 'edit' || e.button > 0) return;
   // tapping the field puts the tool options away
@@ -30,7 +36,7 @@ svg.addEventListener('pointerdown', e => {
   const before = JSON.stringify(draft), additive = multi || e.shiftKey || e.metaKey || e.ctrlKey;
   clearHint();
   const capture = () => { try { svg.setPointerCapture(e.pointerId); } catch(_){} };
-  const started = TOOLS[tool].down({kind, id, idx, raw, pt, before, additive, capture});
+  const started = TOOLS[tool].down({kind, id, idx, raw, pt, before, additive, capture, stack: stackAt(e)});
   if (started) drag = Object.assign(started, {tool});
   renderEditor();
   if (drag) e.preventDefault();
