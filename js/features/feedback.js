@@ -1,12 +1,14 @@
-/* ---------- send feedback: a filled-in GitHub issue plus a picture of the field to draw on ----------
+/* ---------- send feedback: a filled-in GitHub issue plus a picture of the screen to draw on ----------
    The panel, the drawing, the clipboard and the issue address are the feedback kit (js/vendor/feedback-kit/, a copy
    of a release from bremondr/web-kit; it knows nothing about the playbook). This file gives it what is playbook-specific:
-   - the picture: the field SVG, with the display font embedded;
+   - the pictures: the whole screen as it is (the kit redraws the page; the app's three web fonts are embedded), and
+     "Just the field" as a switch in the panel (the field SVG, with its font);
    - the description: where (live app or preview, commit), what was on screen (drill, step and time; in the editor
      the step, tool and tab), the field, and a link that reopens this drill at this moment (feedback-issue.js);
    - the entry points: the options popover, the editor's Drill tab, and the preview tab of a pull request preview
      (tools/preview-runtime.js asks with a cancelable `playbook:feedback` event).
-   The picture shows only the field: a page can't take a screenshot of itself on iPad Safari. */
+   The whole screen is a close copy of the page, not an exact screenshot: a page can't take one of itself on iPad
+   Safari. On desktop browsers the panel also offers a real screenshot (the kit's capture option, left at 'button'). */
 import { embedFonts, svgPicture } from '../vendor/feedback-kit/picture.js';
 import { createFeedback } from '../vendor/feedback-kit/kit.js';
 import { edModel } from '../editor/canvas.js';
@@ -61,18 +63,33 @@ function fileName(c){
   return `feedback-${slug}-${c.step ? 'step-' + c.step : 'setup'}.png`;
 }
 
-// the field's font, from the same Google Fonts stylesheet the page uses (the service worker keeps it offline)
+// web fonts, from the same Google Fonts stylesheet the page uses (the service worker keeps it offline)
+const fontLink = () => document.querySelector('link[rel="stylesheet"][href*="fonts.googleapis.com"]');
+const firstFamily = token => getComputedStyle(document.documentElement).getPropertyValue(token).split(',')[0].replace(/["']/g, '').trim();
+// the field's: its display font only
 function fieldFonts(){
-  const link = document.querySelector('link[rel="stylesheet"][href*="fonts.googleapis.com"]');
-  const family = getComputedStyle(document.documentElement).getPropertyValue('--display').split(',')[0].replace(/["']/g, '').trim();
+  const link = fontLink(), family = firstFamily('--display');
   return link && family ? embedFonts({stylesheet: link.href, family}) : null;
+}
+// the whole page's: text (Barlow), headings and the field (Barlow Condensed) and the share link (JetBrains Mono).
+// embedFonts matches a family by name, so "Barlow" also picks up "Barlow Condensed".
+function pageFonts(){
+  const link = fontLink();
+  if (!link) return null;
+  const families = [...new Set([firstFamily('--body'), firstFamily('--mono')].filter(Boolean))];
+  return Promise.all(families.map(family => embedFonts({stylesheet: link.href, family}))).then(css => css.join('\n'));
 }
 
 const feedback = createFeedback({
   repo: 'bremondr/ultimate-playbook',
   labels: ['feedback'],
   footer: 'Sent with Send feedback in the app.',
+  // the whole screen first: the app fills the window without scrolling, so what is on screen is the whole page.
+  // The getter reads the fonts at each tap, after the page has loaded them.
+  page: {area: 'screen', get fonts(){ return pageFonts(); }},
+  // the field alone, as a switch: the clearest picture of a run, a mark or the disc
   picture: () => svgPicture(svg, {fonts: fieldFonts(), vars: TOKENS}),
+  pictureLabel: 'Just the field',
   describe(){
     const c = context();
     return {
