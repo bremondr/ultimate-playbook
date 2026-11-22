@@ -26,6 +26,12 @@ export function setTeam(list){ team = list; }
 export function saveEntry(entry){ const i = team.findIndex(x => x.id === entry.id); if (i >= 0) team[i] = entry; else team.push(entry); }
 export function dropEntry(id){ team = team.filter(x => x.id !== id); }
 
+/* Drills from team repos (js/features/team.js), [{id, raw, play, repo, itemId, label, canWrite}], read-only here.
+   `id` is 'team:<owner/repo>:<itemId>', so it never clashes with a saved drill's id (a published drill keeps its id). */
+export let repoDrills = [];
+export function setRepoDrills(list){ repoDrills = list; }
+
 export function libEntries(){
-  return [...builtins().map(p => ({id:p.id, source:'builtin', play:p})), ...team.map(e => ({id:e.id, source:'team', play:e.play, raw:e.raw}))];
+  return [...builtins().map(p => ({id:p.id, source:'builtin', play:p})), ...team.map(e => ({id:e.id, source:'team', play:e.play, raw:e.raw})),
+    ...repoDrills.map(e => ({...e, source:'repo'}))];
 }

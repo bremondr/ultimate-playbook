@@ -3,7 +3,7 @@ import { fieldOf } from './data/fields.js';
 import { emit } from './events.js';
 import { builtins, libEntries, saveEntry, team } from './library.js';
 import { compile } from './model/compile.js';
-import { copyOfBuiltin, draftOfSaved } from './model/drafts.js';
+import { copyOfBuiltin, copyOfEntry, draftOfSaved, draftOfTeam } from './model/drafts.js';
 import { bez, discAt, facingDef, hand, pos, stepAt } from './model/motion.js';
 import { throwText } from './model/throws.js';
 import { timeDraft } from './model/timing.js';
@@ -16,11 +16,11 @@ import { canWrite, entryFrom, errText, saveDrill, serialize, storeMode } from '.
 import { $, f2, newDocId, screenOrient } from './util.js';
 
 /* Player state. Other modules read these; only this module changes them. */
-export let current = null;     // what is on screen: {source:'builtin'|'team'|'preview'|'shared', id}
+export let current = null;     // what is on screen: {source:'builtin'|'team'|'repo'|'preview'|'shared', id}
 export let model;              // the compiled drill on screen
 export let playing = false;
 export let sharedRaw = null;   // a drill opened from a #d= link, until it is saved
-let pendingId = null;          // a saved drill the link asked for before the saved drills had loaded
+let pendingId = null;          // a saved or team drill the link asked for before it had loaded
 let t = 0, speed = 1, lastStep = -1, playerEls = {}, endHold = 0, stepEls = [];
 // last drawn facing of each defender, so a defender standing still keeps looking the same way
 const angles = {};
@@ -98,8 +98,8 @@ export function select(hash){
   const entries = libEntries();
   let e = entries.find(x => x.id === id);
   const found = !!e;
-  if (!e){ if (id && storeMode === 'pending') pendingId = id; e = entries[0]; }
-  showPlay(e.play, {source:e.source, id:e.id});
+  if (!e){ if (id && (storeMode === 'pending' || id.startsWith('team:'))) pendingId = id; e = entries[0]; }
+  showPlay(e.play, {source:e.source, id:e.id, team:e.label});
   if (found && at !== null) seek(at);
 }
 // where playback is: the time on screen, in seconds (Send feedback reads it)
@@ -112,7 +112,9 @@ export function showPlay(play, meta){
   svg.classList.toggle('no-def', !$('#t-def').checked);
   model = compile(play); t = 0; endHold = 0;
   emit('showing');
-  $('#pkind').textContent = meta.source === 'preview' ? 'Preview · not saved yet' : meta.source === 'shared' ? play.kind + ' · shared with you' : play.kind + (meta.source === 'team' ? (storeMode === 'db' ? ' · team' : ' · saved here') : '');
+  $('#pkind').textContent = meta.label ? meta.label
+    : meta.source === 'preview' ? 'Preview · not saved yet' : meta.source === 'shared' ? play.kind + ' · shared with you'
+    : play.kind + (meta.source === 'team' ? (storeMode === 'db' ? ' · team' : ' · saved here') : meta.source === 'repo' ? ' · ' + meta.team : '');
   $('#pname').textContent = play.name; $('#psum').textContent = play.summary;
   const chips = $('#pchips'); chips.replaceChildren();
   (play.chips || []).forEach(([k,v]) => { const c = document.createElement('span'); c.className = 'chip'; c.append(k + ' '); const s = document.createElement('strong'); s.textContent = v; c.appendChild(s); chips.appendChild(c); });
@@ -142,14 +144,20 @@ export function updateAct(){
   if (current.source === 'shared'){ b.hidden = false; b.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10z"/></svg>Save to my drills'; return; }
   if (canWrite === false){ b.hidden = true; return; }
   b.hidden = false;
-  b.innerHTML = pencil + (current.source === 'team' ? 'Edit' : 'Edit a copy');
+  b.innerHTML = pencil + (current.source === 'team' || (current.source === 'repo' && teamEdit(current.id)) ? 'Edit' : 'Edit a copy');
+}
+// a team drill opens in the editor as the viewer's own drill with the same id (when they have it, or may publish it)
+function teamEdit(id){
+  const e = libEntries().find(x => x.id === id); if (!e || e.source !== 'repo') return null;
+  const mine = team.find(x => x.id === e.itemId);
+  return mine ? draftOfSaved(mine) : e.canWrite ? draftOfTeam(e) : null;
 }
 $('#act').addEventListener('click', () => {
   if (!current) return;
   if (current.source === 'preview'){ emit('back-to-editor'); return; }
   if (current.source === 'shared'){ saveShared(); return; }
   const e = libEntries().find(x => x.id === current.id); if (!e) return;
-  emit('edit', e.source === 'team' ? draftOfSaved(e) : copyOfBuiltin(e.play));
+  emit('edit', e.source === 'team' ? draftOfSaved(e) : e.source === 'repo' ? (teamEdit(e.id) || copyOfEntry(e)) : copyOfBuiltin(e.play));
 });
 // the editor takes the field: stop playing and forget what was on screen
 export function leavePlayback(){ setPlaying(false); current = null; }
@@ -165,6 +173,13 @@ async function openShared(packed, at){
     showPlay(first, {source:'builtin', id:first.id});
     $('#pkind').textContent = 'That shared link is damaged or incomplete';
   }
+}
+
+/* A drill opened read-only from elsewhere (an old version from a team drill's history), shown like a shared link:
+   it can be watched and saved to the viewer's drills. `label` replaces the line above the name. */
+export function showReadOnly(raw, label){
+  sharedRaw = raw;
+  showPlay({...timeDraft({...raw, id:'shared'}), id:'shared'}, {source:'shared', id:'shared', label});
 }
 
 async function saveShared(){
@@ -240,10 +255,11 @@ if (document.fonts) document.fonts.ready.then(() => fitCaption());
 /* ---------- after the saved drills (re)load ----------
    Show the saved drill a link asked for, or refresh the saved drill on screen if it changed or was deleted. */
 export function followStore(){
-  if (pendingId && team.some(x => x.id === pendingId) && mode !== 'edit'){ const id = pendingId; pendingId = null; select(id); return; }
-  pendingId = null;
-  if (mode === 'view' && current && current.source === 'team'){
-    const e = team.find(x => x.id === current.id);
+  const entries = libEntries();
+  if (pendingId && entries.some(x => x.id === pendingId) && mode !== 'edit' && splitTime(location.hash.slice(1)).id === pendingId){ const id = pendingId; pendingId = null; select(location.hash.slice(1)); return; }
+  if (!pendingId || !pendingId.startsWith('team:')) pendingId = null;   // team drills can arrive later than saved ones
+  if (mode === 'view' && current && (current.source === 'team' || current.source === 'repo')){
+    const e = entries.find(x => x.id === current.id && x.source === current.source);
     if (!e) select(builtins()[0].id);
     else if (JSON.stringify(e.play) !== JSON.stringify(model.play)){ const was = playing; select(e.id); if (was) setPlaying(true); }
   }

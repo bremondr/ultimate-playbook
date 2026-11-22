@@ -1,4 +1,4 @@
-/* Self-contained features: QR code for share links, drill backup, presentation mode, send feedback. */
+/* Self-contained features: QR code for share links, drill backup, presentation mode, send feedback, team repos. */
 
 /* ---------- QR code (js/features/qr.js) ---------- */
 /* Always dark on white, also in dark mode: scanners expect it. */
@@ -63,3 +63,26 @@ body.presenting .cap small{font-size:16px;margin-top:4px}
   --fk-on-accent:var(--on-accent);--fk-warn:var(--warn);--fk-stage:var(--bg);--fk-font:var(--body);--fk-display:var(--display);--fk-z:45}
 #opts-feedback{margin-top:4px}
 #e-feedback{margin-top:8px}
+
+/* ---------- team repos (js/features/team.js) ---------- */
+/* the drawer: each team's state under the list */
+.teams{display:flex;flex-direction:column;gap:8px;padding-top:14px;border-top:1px solid var(--rule)}
+.teams h2{font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0}
+.teamlines{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.teamlines li{display:flex;flex-direction:column;gap:2px}
+.teamlines .warn{color:var(--warn)}
+.teams .ghost{font-size:14px;align-self:flex-start}
+#teams-fake{overflow-wrap:anywhere;font-family:var(--mono);font-size:11.5px}
+.preview-warn{color:var(--warn)}
+/* the team's tag in the drill list */
+.item .tag.team{color:var(--ink);background:var(--accent-soft);border-radius:5px;padding:1px 6px}
+/* the share popover: publish, history, remove, the team's links */
+.teamshare{display:flex;flex-direction:column;gap:8px;padding-top:12px;margin-top:4px;border-top:1px solid var(--rule)}
+.teamshare > div{display:flex;flex-direction:column;gap:8px}
+.teamshare select,.teamshare input{font:inherit;font-size:16px;min-height:40px;padding:6px 10px;border:1px solid var(--rule);border-radius:10px;background:var(--raised);color:var(--ink)}
+.teamshare .small:empty{display:none}
+#team-links{flex-wrap:wrap}
+#team-links .ghost{font-size:14px}
+/* the panel (git-store-kit) in the app's colours and fonts */
+:root{--gs-surface:var(--surface);--gs-ink:var(--ink);--gs-muted:var(--muted);--gs-rule:var(--rule);--gs-accent:var(--accent);
+  --gs-on-accent:var(--on-accent);--gs-warn:var(--warn);--gs-danger:var(--danger);--gs-font:var(--body);--gs-display:var(--display);--gs-z:50}
