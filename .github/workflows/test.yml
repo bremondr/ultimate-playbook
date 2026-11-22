@@ -19,7 +19,7 @@ jobs:
           node-version: 22
 
       - name: Unit tests
-        run: node --test tools/*.test.mjs $(ls tests/*.test.mjs 2>/dev/null)
+        run: node --test $(ls tests/*.test.mjs 2>/dev/null)
 
       - name: Import layers
         run: if [ -f tools/check-imports.mjs ]; then node tools/check-imports.mjs; else echo "No tools/check-imports.mjs on this branch."; fi

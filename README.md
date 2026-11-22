@@ -79,7 +79,7 @@ data → model → render → services (library, storage, share) → UI (player,
 There is nothing to build. Three checks:
 
 - `node tools/check-imports.mjs` checks that the modules have no import cycles, that every import points down the layers, and that each module in `js/vendor/` imports only from itself. Plain Node, no packages.
-- `node --test tools/*.test.mjs tests/*.test.mjs` runs the unit tests: attacker labels (`tests/labels.test.mjs`), the feedback issue, from the playbook and from the kit, and times in links (`tests/feedback.test.mjs`), and the site build for previews (`tools/build-site.test.mjs`). Plain Node.
+- `node --test tests/*.test.mjs` runs the unit tests: attacker labels (`tests/labels.test.mjs`), and the feedback issue, from the playbook and from the kit, and times in links (`tests/feedback.test.mjs`). Plain Node. (The site build's own tests live in web-kit, with the build.)
 - `python3 tests/regression.py` serves the folder with `python3 -m http.server`, opens it in headless Chrome with Python Playwright, and checks that there are no page or console errors, the main player and editor flows on an iPad-sized and a phone-sized screen, saving to a mocked team store (as when the page runs as a Claude artifact), and the model output of every built-in drill against `tests/baseline.json`. It needs Python Playwright (`pip install playwright`) and a Chrome: `CHROME_PATH` if set, else `/usr/bin/google-chrome` (as in CI), else Playwright's own Chromium (`python -m playwright install chromium`, the easy way on Windows and macOS). After a deliberate change to the model, rewrite the baseline with `--update-baseline`. `--trace FILE` and `--shots DIR` record what each step showed, to compare two versions (`--root DIR` serves another copy of the app).
 
 ### Modules from web-kit
@@ -108,21 +108,26 @@ Opening or pushing to a pull request updates its preview, and a comment on the p
 
 A preview differs from the live app in three ways, all added when the site is built (the app's own files never contain them):
 
-- **Its own saved drills.** Every version shares one browser origin, so `tools/preview-runtime.js` gives each preview its own storage keys (`preview:pr-NUMBER:`): a preview never sees or changes the live app's drills, or another preview's.
-- **A small tab** in the bottom-right corner (Preview PR #NUMBER). Tap it for the commit and links to the pull request, the live app and the other previews; × hides it. Its **Feedback** link opens the app's Send feedback panel; on a preview of a version without that panel it opens a new issue with only the preview filled in.
+- **Its own saved drills.** Every version shares one browser origin, so `tools/preview-runtime.js` gives each preview its own storage keys (`preview:pr-NUMBER:`, also on IndexedDB and Cache Storage names): a preview never sees or changes the live app's drills, or another preview's. The app sees the preview's description (label, commit) as `window.PLAYBOOK_PREVIEW`.
+- **A small tab** in the bottom-right corner (Preview PR #NUMBER). Tap it for the commit and links to the pull request, the same page in the live app and the other previews; × hides it. Its **Feedback** link opens the app's Send feedback panel (it fires a cancelable `playbook:feedback` event); on a preview of a version without that panel it opens a new issue with only the preview filled in.
 - **No offline mode.** Its service worker is replaced with one that does nothing, because the caches are shared by every version too. It also isn't listed by search engines.
 
 Share links made in a preview open in that preview.
 
-**How it works.** `.github/workflows/pages.yml` runs on every push to `main`, on pull request events and by hand (Actions, Deploy site, Run workflow). It checks `main`, fetches the open pull requests, and builds the whole site with `tools/build-site.mjs`, reading each version straight from git; then it deploys and comments. It uses `pull_request_target`, so the workflow and the build script that run are always the ones on `main`, and a pull request's code is never run in CI. A change to how the site is built therefore only shows in previews after it is merged. At most 20 previews are published. `.github/workflows/test.yml` runs the checks (below) on every pull request.
+**Where the files come from.** `.github/workflows/pages.yml`, `tools/build-site.mjs` and `tools/preview-runtime.js` are copies of `consumer/pages.yml`, `consumer/build-site.mjs` and `consumer/preview-runtime.js` in [web-kit](https://github.com/bremondr/web-kit), shared by every project that has previews. Don't edit them here: change them in web-kit, and copy them again when web-kit's [`consumer/CHANGELOG.md`](https://github.com/bremondr/web-kit/blob/main/consumer/CHANGELOG.md) says so ("Adding previews to a project", step 1, in web-kit's `docs/setup-project.md`). What is the playbook's own is in `site.json`: what is published, the service worker, the checks that must pass on `main`, the Feedback link and its event, the `PLAYBOOK_PREVIEW` name, and the bot comment. The options are described at the top of `tools/build-site.mjs`.
+
+**How it works.** `.github/workflows/pages.yml` runs on every push to `main`, on pull request events and by hand (Actions, Deploy site, Run workflow). It checks `main` (the `checks` in `site.json`), fetches the open pull requests, and builds the whole site with `tools/build-site.mjs`, reading each version straight from git; then it deploys and comments. It uses `pull_request_target`, so the workflow, the build script and `site.json` that run are always the ones on `main`, and a pull request's code is never run in CI. A change to how the site is built therefore only shows in previews after it is merged. At most 20 previews are published. `.github/workflows/test.yml` runs the checks (below) on every pull request.
 
 To build the same folder locally from any branches:
 
 ```sh
+node tools/build-site.mjs --run-checks
 echo '[{"number": 16, "ref": "my-branch"}]' > previews.json
-node tools/build-site.mjs --out _site --main main --previews previews.json
+node tools/build-site.mjs --out _site --main main --previews previews.json --repo bremondr/ultimate-playbook
 python3 -m http.server -d _site
 ```
+
+(`--repo` gives the badge its pull request and Feedback links.)
 
 **Setting it up (once).** In the repository, Settings, Pages, Build and deployment, set Source to **GitHub Actions** (or `gh api -X PUT repos/bremondr/ultimate-playbook/pages -f build_type=workflow`), then run the workflow once. To go back, set the source to "Deploy from a branch", `main`; the site then has only the live app.
 
