@@ -81,6 +81,7 @@ const APP_FILES = [
   './js/vendor/feedback-kit/feedback-kit.css',
   './js/vendor/feedback-kit/issue.js',
   './js/vendor/feedback-kit/kit.js',
+  './js/vendor/feedback-kit/page.js',
   './js/vendor/feedback-kit/picture.js',
   './js/vendor/feedback-kit/sketch.js'
 ];

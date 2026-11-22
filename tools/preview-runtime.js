@@ -48,6 +48,7 @@
     const badge = doc.createElement('div');
     badge.className = 'preview-badge';
     badge.setAttribute('role', 'note');
+    badge.setAttribute('data-fk-skip', '');   // not part of the app: left out of Send feedback's picture
     badge.style.cssText = 'position:fixed;right:calc(8px + env(safe-area-inset-right, 0px));bottom:0;z-index:2147483000;'
       + 'display:flex;align-items:center;gap:8px;max-width:calc(100vw - 16px);overflow:hidden;'
       + 'padding:3px 6px calc(3px + env(safe-area-inset-bottom, 0px)) 6px;border-radius:8px 8px 0 0;'

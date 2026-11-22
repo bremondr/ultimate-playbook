@@ -192,6 +192,12 @@ def player_flow(r, base):
     r.check(p.evaluate(red) > 100 and p.is_enabled('.fk-tools .fk-btn >> nth=0'), 'a stroke drawn on the picture')
     r.snap('feedback-drawn')
     p.keyboard.press('Control+z'); r.check(p.evaluate(red) == 0, 'undo the stroke')
+    # the whole page first, and the field alone as a switch
+    pressed = lambda label: p.get_by_role('button', name=label).get_attribute('aria-pressed')
+    r.check(pressed('Whole page') == 'true' and pressed('Just the field') == 'false', 'feedback opens with the whole page')
+    p.get_by_role('button', name='Just the field').click()
+    r.wait("document.querySelector('.fk-canvas').width > 1000")   # the field is drawn larger than the page
+    r.check(pressed('Just the field') == 'true', 'feedback switches to just the field')
     r.snap('feedback')
     p.keyboard.press('Escape'); r.check(not r.visible('.fk'), 'escape closes feedback')
     p.goto(base + '#angel&t=4'); r.wait("document.querySelector('#pname').textContent === 'Angel drill'")
