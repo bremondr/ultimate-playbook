@@ -12,13 +12,14 @@ Read `README.md` first: it describes the features, the module layers, where stat
 - `js/vendor/` holds copies of modules released in [bremondr/web-kit](https://github.com/bremondr/web-kit) (versions in `vendor.json`). Don't edit them here: change the module in web-kit, release it, then run `node tools/update-vendor.mjs`. Playbook-specific code that uses a module stays outside it (for the feedback kit: `js/features/feedback.js`).
 - Everything written in the repository (code comments, README, issues, PRs, commit messages) is in English, in plain words. The owner often gives feedback in Czech.
 - Don't bump `VERSION` or edit `APP_FILES` in `sw.js` by hand for releases: the site build fills both in. Add a new file to `APP_FILES` only to keep local offline testing complete.
+- The site build and previews (`tools/build-site.mjs`, `tools/preview-runtime.js`, `.github/workflows/pages.yml`) are copies of web-kit's `consumer/` files. Don't edit them here: what is the playbook's own goes in `site.json`; anything else is changed in web-kit, and the copies are refreshed when web-kit's `consumer/CHANGELOG.md` says so. Keep `site.json`'s `checks` the same as the Node checks below.
 - `tests/baseline.json` holds the model output of every built-in drill. Rewrite it (`python tests/regression.py --update-baseline`) only after a deliberate change to the model, and say so in the PR.
 
 ## Checks (run all three before opening a PR)
 
 ```sh
 node tools/check-imports.mjs
-node --test tools/*.test.mjs tests/*.test.mjs
+node --test tests/*.test.mjs
 python tests/regression.py
 ```
 
