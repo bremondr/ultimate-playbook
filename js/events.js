@@ -9,6 +9,7 @@ const EVENTS = {
   'store-loaded':   'storage: the saved drills were (re)loaded from the store',
   'drills-changed': 'player or backup: drills were added (a shared drill saved, a backup restored), so the drill list needs rebuilding',
   'access-changed': 'storage: we learned whether this viewer may save drills',
+  'team-loaded':    'features/team: the drills from team repos changed (loaded, published, removed), so the list and the drill on screen catch up',
   'showing':        'player: another drill is on screen',
   'edit':           'player, nav: open the editor on this draft',
   'back-to-editor': 'player, nav: return to the drill being drawn, with an optional warning for the hint line',
