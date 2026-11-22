@@ -25,8 +25,10 @@ export function blankDraft(){
 
 // new drills: blank, or a copy of any built-in or saved drill (a library entry)
 export function copyOfEntry(e){
-  if (e.source === 'team') return {...clone(e.raw), id:null, docId:null, createdAt:undefined, name:(e.raw.name || 'Untitled drill') + ' (copy)'};
+  if (e.raw) return {...clone(e.raw), id:null, docId:null, createdAt:undefined, name:(e.raw.name || 'Untitled drill') + ' (copy)'};
   return copyOfBuiltin(e.play);
 }
 // a saved drill, to edit in place
 export const draftOfSaved = e => ({...clone(e.raw), id:e.id, docId:e.id});
+// a team drill, for its editor: saved in this browser under the team drill's id, so publishing it again replaces it
+export const draftOfTeam = e => ({...clone(e.raw), id:null, docId:null, saveAs:e.itemId, createdAt:e.raw.createdAt || undefined});

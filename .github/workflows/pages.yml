@@ -1,13 +1,21 @@
-name: Deploy site
-
-# The live app is main, published at the root of the GitHub Pages site. Every open pull request from this
-# repository is published as a preview under /preview/pr-<number>/. Each run rebuilds the whole site from git
-# (tools/build-site.mjs), so a preview disappears by itself when its pull request is closed or merged.
-# The last step comments on every open pull request with its preview link (or why it has none).
+# Publish the site with GitHub Pages: main at the root, and every open pull request from this repository as a
+# preview under /preview/pr-<number>/. Each run rebuilds the whole site from git (tools/build-site.mjs), so a
+# preview disappears by itself when its pull request is closed or merged. The last step comments on every open
+# pull request with its preview link (or why it has none).
 #
-# pull_request_target is used on purpose: the workflow and the build script that run are always the ones on
-# main, and a pull request's files are only copied out of git, never run here. Pull requests from forks are
+# The original of this workflow is consumer/pages.yml in bremondr/web-kit; projects keep a copy in
+# .github/workflows/pages.yml, with copies of consumer/build-site.mjs and consumer/preview-runtime.js in tools/.
+# Don't edit the copies: what differs between projects (the site's folder, the checks, files left out, a service
+# worker, the Feedback link) goes in site.json at the repository's root (see tools/build-site.mjs). The one line
+# here that a project may change is SITE_TOOLS below, if it keeps the two scripts somewhere other than tools/.
+#
+# Needs: Settings, Pages, Source: "GitHub Actions". With a custom domain set there, links use it by themselves.
+#
+# pull_request_target is used on purpose: the workflow, the build script and site.json that run are always the
+# ones on main, and a pull request's files are only copied out of git, never run here. Pull requests from forks are
 # skipped, because every version on the site shares one origin (and so one browser storage).
+
+name: Deploy site
 
 on:
   push:
@@ -21,6 +29,9 @@ permissions:
   pages: write
   id-token: write
   pull-requests: write
+
+env:
+  SITE_TOOLS: tools
 
 jobs:
   deploy:
@@ -43,11 +54,10 @@ jobs:
         with:
           node-version: 22
 
-      # Every run publishes main, so every run checks main first: a broken main is never published.
+      # Every run publishes main, so every run checks main first (site.json's "checks", "node --test" if it has
+      # none): a broken main is never published, whatever started the run.
       - name: Check main
-        run: |
-          node --test tools/*.test.mjs $(ls tests/*.test.mjs 2>/dev/null)
-          if [ -f tools/check-imports.mjs ]; then node tools/check-imports.mjs; fi
+        run: node "$SITE_TOOLS/build-site.mjs" --run-checks
 
       # Same-repository pull requests only, filtered before any limit so forks can't crowd real ones out.
       - name: Collect open pull requests from this repository
@@ -62,7 +72,7 @@ jobs:
           done
 
       - name: Build the site
-        run: node tools/build-site.mjs --out _site --main HEAD --previews previews.json --repo "${{ github.repository }}" --summary build-summary.json
+        run: node "$SITE_TOOLS/build-site.mjs" --out _site --main HEAD --previews previews.json --repo "${{ github.repository }}" --summary build-summary.json
 
       - uses: actions/configure-pages@v6
 
@@ -83,13 +93,15 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const marker = '<!-- playbook-preview -->';
-            const base = process.env.PAGE_URL;
-            const { owner, repo } = context.repo;
             const summary = JSON.parse(fs.readFileSync('build-summary.json', 'utf8'));
+            const marker = (summary.comment && summary.comment.marker) || '<!-- site-preview -->';
+            const note = (summary.comment && summary.comment.note) || '';
+            const base = process.env.PAGE_URL.replace(/\/?$/, '/');
+            const start = summary.start || '';
+            const { owner, repo } = context.repo;
             const bodyFor = (result) => {
               if (result.status === 'built') {
-                return `${marker}\n**Preview:** ${base}preview/pr-${result.number}/\n\nBuilt from \`${result.sha}\`. It keeps its own saved drills, separate from the live app, and doesn't work offline. It is removed when this pull request is closed or merged.`;
+                return `${marker}\n**Preview:** ${base}preview/pr-${result.number}/${start}\n\nBuilt from \`${result.sha}\`. ${note}`.trimEnd();
               }
               if (result.status === 'over-cap') {
                 return `${marker}\n**No preview:** ${result.reason}. It gets one when an older pull request is closed.`;

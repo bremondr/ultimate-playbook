@@ -22,7 +22,10 @@ export function buildNav(){
       const li = document.createElement('li'), b = document.createElement('button');
       b.className = 'item'; b.dataset.id = e.id; b.type = 'button';
       const nm = document.createElement('b'); nm.textContent = p.name;
-      if (e.source === 'team'){ const tg = document.createElement('span'); tg.className = 'tag'; tg.textContent = storeMode === 'db' ? 'Team' : 'Mine'; nm.appendChild(tg); }
+      if (e.source === 'team' || e.source === 'repo'){
+        const tg = document.createElement('span'); tg.className = e.source === 'repo' ? 'tag team' : 'tag';
+        tg.textContent = e.source === 'repo' ? e.label : storeMode === 'db' ? 'Team' : 'Mine'; nm.appendChild(tg);
+      }
       const sm = document.createElement('small'); sm.textContent = `${p.steps.length} step${p.steps.length>1?'s':''} · ${throws} throw${throws===1?'':'s'} · ${total.toFixed(0)} s`;
       b.append(nm, sm);
       b.setAttribute('aria-current', current && current.id === e.id && current.source !== 'preview' ? 'true' : 'false');
@@ -75,7 +78,8 @@ $('#drawer-close').addEventListener('click', () => openDrawer(false));
 $('#scrim').addEventListener('click', () => openDrawer(false));
 $('#info').addEventListener('click', () => togglePop('#info', '#info-pop'));
 $('#opts').addEventListener('click', () => togglePop('#opts', '#opts-pop'));
-document.addEventListener('pointerdown', e => { if (!e.target.closest('.pop, #info, #opts, #share')) closePops(); });
+// taps in the team panel (js/features/team.js, over the share popover while publishing) leave the popovers open
+document.addEventListener('pointerdown', e => { if (!e.target.closest('.pop, #info, #opts, #share, .gs')) closePops(); });
 
 /* ---------- share popover ---------- */
 // also used by Send feedback (js/features/feedback.js) for its reopen link
@@ -84,6 +88,7 @@ export async function shareLink(){
   if (current.source === 'builtin') return builtinLink(current.id);
   let raw = null;
   if (current.source === 'team'){ const e = team.find(x => x.id === current.id); raw = e && e.raw; }
+  else if (current.source === 'repo'){ const e = libEntries().find(x => x.id === current.id); raw = e && e.raw; }
   else if (current.source === 'preview') raw = draft;
   else if (current.source === 'shared') raw = sharedRaw;
   if (!raw) return null;

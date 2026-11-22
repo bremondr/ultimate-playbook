@@ -1,0 +1,10 @@
+{
+  "name": "Ultimate Playbook",
+  "paths": ["index.html", "manifest.webmanifest", "sw.js", "css", "js", "icons"],
+  "serviceWorker": "sw.js",
+  "checks": ["node --test tests/*.test.mjs", "node tools/check-imports.mjs"],
+  "feedback": {"labels": ["feedback"], "event": "playbook:feedback"},
+  "global": "PLAYBOOK_PREVIEW",
+  "commentMarker": "<!-- playbook-preview -->",
+  "commentNote": "It keeps its own saved drills, separate from the live app, and doesn't work offline. It is removed when this pull request is closed or merged."
+}

@@ -4,7 +4,9 @@
 Serves the folder with `python3 -m http.server`, opens it in headless Chrome (Python Playwright) and checks:
   1. no page errors and no console errors;
   2. the main player and editor flows (with drawing throws, and Send feedback), on an iPad-sized and a phone-sized screen;
-  3. the saved-drills path through a mocked `window.claude` team store (as when the page runs as a Claude artifact);
+  3. the saved-drills path through a mocked `window.claude` team store (as when the page runs as a Claude artifact),
+     and team repos (js/features/team.js) against the GitHub in memory that ?fakegithub plugs in: following a team
+     from its link, its drills in the list, a token, Publish to team, a conflict, history and Remove from team;
   4. the model output (positions, disc, facing, marks, timing) of every built-in drill, against tests/baseline.json.
 
     python3 tests/regression.py                    # run every check
@@ -353,6 +355,55 @@ def team_flow(r, base, can_write):
     r.snap('team-saved')
 
 
+FAKE_TOKEN = 'github_pat_FAKE_' + 'x' * 30
+SUNSET = 'bremondr/ultimate-playbook-sunset'
+MY_DRILL = """repo => { const f = window.PLAYBOOK_FAKE_GITHUB.file(repo, 'drills/sunset-angel.json');
+  localStorage.setItem('ub-team-drills', JSON.stringify({c1mine: {...f, name: 'Hex cuts', createdAt: 1}})); }"""
+EDIT_ON_GITHUB = """async repo => { const fake = window.PLAYBOOK_FAKE_GITHUB, path = 'drills/c1mine.json';
+  await fake.edit(repo, path, {...fake.file(repo, path), name: 'Hex cuts (coach B)'}); }"""
+
+
+def team_repo_flow(r, base):
+    p = r.page
+    p.goto(base + '?fakegithub#team=sunset')
+    r.wait("document.querySelector('#team-lines').textContent.includes('Sunset: 2 drills')")
+    r.check(p.evaluate('location.hash') == '', 'the team link is taken out of the address')
+    r.check(r.visible('#drawer'), 'the list opens after following a team')
+    r.check(p.locator('#nav .tag.team').all_text_contents() == ['Sunset', 'Sunset'], 'team drills tagged with the team')
+    r.snap('followed')
+    # a saved drill of my own, then a token for Sunset (both kept in this browser, so they survive the reload)
+    p.evaluate(MY_DRILL, SUNSET)
+    p.reload(); r.wait("document.querySelectorAll('#nav .tag.team').length === 2")
+    r.click('#opts'); r.click('#opts-teams')
+    row = f'.gs-source[data-repo="{SUNSET}"]'
+    r.click(f'{row} [data-gs-token]'); p.fill(f'{row} .gs-input', FAKE_TOKEN); r.click(f'{row} .gs-primary')
+    r.wait("document.querySelector('.gs-done') && document.querySelector('.gs-done').textContent.includes('you can edit')")
+    p.keyboard.press('Escape')
+    # publish my drill, then again after it changed on GitHub: the conflict question
+    p.evaluate("location.hash = 'c1mine'"); r.wait("document.querySelector('#pname').textContent === 'Hex cuts'")
+    r.click('#share'); r.check(r.visible('#team-publish-go'), 'Publish to team on a saved drill')
+    p.fill('#team-note', 'First version'); r.click('#team-publish-go')
+    r.wait("document.querySelector('#team-share-status').textContent === 'Published to Sunset.'")
+    r.check(p.evaluate("repo => window.PLAYBOOK_FAKE_GITHUB.commits(repo)[0].message", SUNSET) == 'First version', 'the note is the commit message')
+    r.check(p.locator('#nav .tag.team').count() == 3, 'the published drill is in the list at once')
+    p.evaluate(EDIT_ON_GITHUB, SUNSET)
+    r.click('#team-publish-go'); p.wait_for_selector('.gs-choices', timeout=10000)
+    r.snap('conflict')
+    r.click('.gs-choices .gs-primary')
+    r.wait("document.querySelector('#team-share-status').textContent === 'Published to Sunset.'")
+    r.check(p.evaluate("repo => window.PLAYBOOK_FAKE_GITHUB.file(repo, 'drills/c1mine.json').name", SUNSET) == 'Hex cuts', 'overwrite with mine')
+    # the team drill: read-only, its history, then removed
+    r.click('#share'); r.click('#menu'); r.click('#nav .item:has(.tag.team):has-text("Hex cuts")')
+    r.wait("document.querySelector('#pkind').textContent === 'Drill · Sunset'")   # a team drill says its team
+    r.click('#share'); r.click('#team-history'); p.wait_for_selector('.gs-version >> nth=2', timeout=10000)
+    r.check(p.locator('.gs-version strong').count() == 3, 'three versions in the history')
+    r.snap('history')
+    p.keyboard.press('Escape')
+    r.click('#share'); r.click('#team-remove'); r.click('#team-remove')
+    r.wait("document.querySelectorAll('#nav .tag.team').length === 2")
+    r.check(p.evaluate("repo => window.PLAYBOOK_FAKE_GITHUB.file(repo, 'drills/c1mine.json')", SUNSET) is None, 'removed from the team')
+
+
 def model_dump(page, base):
     page.goto(base); page.wait_for_function("document.querySelector('#pname').textContent !== '—'")
     return page.evaluate(MODEL_DUMP, base)
@@ -403,6 +454,11 @@ def main():
                 try: team_flow(r, base, can)
                 except Exception as e: r.failures.append(f'{r.name}: stopped: {e}')
                 failures += r.failures; r.page.context.close()
+
+            r = page_for('team-repos', VIEWPORTS['ipad'])
+            try: team_repo_flow(r, base)
+            except Exception as e: r.failures.append(f'{r.name}: stopped: {e}')
+            failures += r.failures; r.page.context.close()
 
             r = page_for('model', VIEWPORTS['ipad'])
             dump = json.dumps(model_dump(r.page, base), indent=1, sort_keys=True, ensure_ascii=False) + '\n'

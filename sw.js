@@ -4,6 +4,8 @@
    - Google Fonts are stored the first time they load, and refreshed in the background.
    - Older app caches are deleted when a new version takes over.
    - Previews of pull requests (under preview/, see README) are left alone.
+   - Requests to other sites are left to the network, apart from Google Fonts: team repos (js/features/team.js) are
+     read from api.github.com and raw.githubusercontent.com, and must never be served from a cache here.
    VERSION and APP_FILES are filled in when the site is built (tools/build-site.mjs): a hash of the published
    files and their list. The values here are only used when the folder is served as it is, for local testing. */
 const VERSION = 'v2';
@@ -57,6 +59,8 @@ const APP_FILES = [
   './js/features/feedback.js',
   './js/features/present.js',
   './js/features/qr.js',
+  './js/features/team-format.js',
+  './js/features/team.js',
   './js/library.js',
   './js/main.js',
   './js/model/compile.js',
@@ -83,7 +87,13 @@ const APP_FILES = [
   './js/vendor/feedback-kit/kit.js',
   './js/vendor/feedback-kit/page.js',
   './js/vendor/feedback-kit/picture.js',
-  './js/vendor/feedback-kit/sketch.js'
+  './js/vendor/feedback-kit/sketch.js',
+  './js/vendor/git-store-kit/cache.js',
+  './js/vendor/git-store-kit/git-store-kit.css',
+  './js/vendor/git-store-kit/github.js',
+  './js/vendor/git-store-kit/panel.js',
+  './js/vendor/git-store-kit/sources.js',
+  './js/vendor/git-store-kit/store.js'
 ];
 
 self.addEventListener('install', e => {

@@ -24,7 +24,7 @@ import { storeMode } from '../storage.js';
 import { $ } from '../util.js';
 import { playbookIssue } from './feedback-issue.js';
 
-const SOURCES = {builtin: 'built in', team: 'saved', preview: 'preview of a drill being drawn', shared: 'opened from a shared link'};
+const SOURCES = {builtin: 'built in', team: 'saved', repo: 'team drill, from a team repo', preview: 'preview of a drill being drawn', shared: 'opened from a shared link'};
 // the colour tokens the field uses (css/tokens.css), defined again inside the picture in case a value is still a var()
 const TOKENS = ['--bg', '--ink', '--muted', '--turf', '--turf2', '--endzone', '--chalk', '--label', '--off', '--off-ink',
   '--def', '--over', '--cone', '--disc', '--shadow'];
