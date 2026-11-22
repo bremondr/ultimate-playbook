@@ -21,7 +21,8 @@ async function unpackDrill(t){
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 
-export const builtinLink = id => shareBase() + '#' + id;
+export const appLink = hash => shareBase() + '#' + hash;
+export const builtinLink = id => appLink(id);
 export async function drillLink(raw){
   const body = serialize({...raw, name: raw.name || 'Untitled drill'});
   return shareBase() + '#d=' + await packDrill(body);

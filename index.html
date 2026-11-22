@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="css/studio.css">
 <link rel="stylesheet" href="css/features.css"><!-- QR code, backup, presentation mode, feedback -->
 <link rel="stylesheet" href="js/vendor/feedback-kit/feedback-kit.css"><!-- Send feedback panel (js/vendor/feedback-kit/, from web-kit) -->
+<link rel="stylesheet" href="js/vendor/git-store-kit/git-store-kit.css"><!-- team repos panel (js/vendor/git-store-kit/, from web-kit) -->
 </head>
 <body>
 <div class="app" id="app">
@@ -65,6 +66,27 @@
     <button class="qrbox" id="share-qr" type="button" title="Show the QR code larger" hidden></button>
     <p class="small" id="share-qr-note" hidden>This link is too long for a QR code. Send the link instead.</p>
     <button class="ghost" id="share-qr-big" type="button" hidden><svg viewBox="0 0 24 24" class="ico"><path d="M4 4h6v2H6v4H4zm10 0h6v6h-2V6h-4zM4 14h2v4h4v2H4zm14 4v-4h2v6h-6v-2z"/></svg>Show QR code larger</button>
+    <!-- feature: team repos (js/features/team.js): publish, remove, history, and the team's link -->
+    <section class="teamshare" id="share-team" aria-labelledby="share-team-h" hidden>
+      <h3 id="share-team-h">Team</h3>
+      <div id="team-publish" hidden>
+        <p class="small" id="team-publish-what"></p>
+        <label class="small" id="team-pick-l" for="team-pick" hidden>Team</label>
+        <select id="team-pick" hidden></select>
+        <input id="team-note" type="text" maxlength="200" autocomplete="off" placeholder="Note for the history (optional)" aria-label="Note for the team's history (optional)">
+        <div class="btnrow"><button class="primary" id="team-publish-go" type="button">Publish to team</button></div>
+      </div>
+      <div id="team-drill" hidden>
+        <p class="small" id="team-drill-what"></p>
+        <div class="btnrow">
+          <button class="ghost" id="team-history" type="button">History</button>
+          <button class="ghost danger" id="team-remove" type="button" hidden>Remove from team</button>
+        </div>
+      </div>
+      <p class="small" id="team-share-status" role="status"></p>
+      <div class="btnrow" id="team-links"></div>
+      <p class="small preview-warn" id="team-share-preview" hidden>This is a preview: publishing here writes to the real team repo.</p>
+    </section>
   </div>
   <div class="pop right" id="opts-pop" hidden>
     <h3>Playback</h3>
@@ -77,6 +99,8 @@
     <p class="small keys"><kbd>Space</kbd> play · <kbd>←</kbd> <kbd>→</kbd> step</p>
     <!-- feature: send feedback (js/features/feedback.js) -->
     <button class="link" id="opts-feedback" type="button">Send feedback about what’s on screen</button>
+    <!-- feature: team repos (js/features/team.js) -->
+    <button class="link" id="opts-teams" type="button" hidden>Teams and tokens…</button>
   </div>
 
   <main class="vstage stage" id="vstage">
@@ -140,6 +164,14 @@
     </div>
     <nav class="groups" id="nav" aria-label="Plays and drills"></nav>
     <p class="sync" id="sync"></p>
+    <!-- feature: team repos (js/features/team.js): when each team was last checked, or why it couldn't be loaded -->
+    <section class="teams" id="teams" aria-labelledby="teams-h" hidden>
+      <h2 id="teams-h">Teams</h2>
+      <ul class="teamlines" id="team-lines"></ul>
+      <p class="small preview-warn" id="teams-preview" hidden>This is a preview: it has its own tokens, and a token pasted here saves to the real team repo.</p>
+      <p class="small" id="teams-fake" hidden></p>
+      <button class="ghost" id="teams-open" type="button">Teams and tokens…</button>
+    </section>
     <!-- feature: back up and restore drills (js/features/backup.js) -->
     <section class="backup" aria-labelledby="backup-h">
       <h2 id="backup-h">Backup</h2>

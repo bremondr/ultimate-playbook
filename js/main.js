@@ -13,6 +13,7 @@ import { screenOrient } from './util.js';
 on('showing', markNav);
 on('drills-changed', buildNav);
 on('store-loaded', () => { buildNav(); followStore(); });
+on('team-loaded', () => { buildNav(); followStore(); });
 on('access-changed', () => { showWriteAccess(); if (mode !== 'edit') updateAct(); });
 on('edit', openEditor);
 on('back-to-editor', backToEditor);
@@ -21,6 +22,7 @@ import './features/qr.js';
 import './features/backup.js';
 import './features/present.js';
 import './features/feedback.js';
+import './features/team.js';
 import './pwa.js';
 
 /* ---------- keys and window events ---------- */

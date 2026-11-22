@@ -87,7 +87,7 @@ $('#e-delete').addEventListener('click', async () => {
 $('#s-save').addEventListener('click', async () => {
   if (!draft) return;
   if (!draft.name.trim()){ draft.name = 'Untitled drill'; $('#s-name').value = draft.name; }
-  const id = draft.docId || newDocId(), now = Date.now();
+  const id = draft.docId || draft.saveAs || newDocId(), now = Date.now();
   const body = serialize(draft); body.updatedAt = now; body.createdAt = draft.createdAt || now;
   $('#s-save').disabled = true; status('Saving…');
   try {
