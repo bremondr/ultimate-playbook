@@ -15,7 +15,8 @@ export function copyOfBuiltin(p){
     steps: p.steps.map(s => ({title:s.title, note:s.note, dur:null,
       moves: Object.fromEntries(Object.entries(s.moves || {}).map(([id, m]) => [id, {path: clone(m.path)}])),
       throw: s.throw ? Object.assign({from:s.throw.from, to:s.throw.to, type:typeOf(s.throw), curve:curveOf(s.throw)}, s.throw.fake ? {fake:s.throw.fake} : {}, GRIPS[s.throw.grip] ? {grip:s.throw.grip} : {}) : null,
-      ...(s.arrows === false ? {arrows:false} : {})}))
+      ...(s.arrows === false ? {arrows:false} : {}),
+      ...(s.newDisc ? {newDisc: clone(s.newDisc)} : {})}))
   };
 }
 export function blankDraft(){

@@ -6,9 +6,9 @@ import { emit } from '../events.js';
 import { faceTarget } from '../model/facing.js';
 import { compile } from '../model/compile.js';
 import { labelSize } from '../model/labels.js';
-import { bez, discAt, facingDef, hand, markTargetAt, pos } from '../model/motion.js';
+import { bez, discAt, facingDef, hand, markTargetAt, pos, sparesAt } from '../model/motion.js';
 import { timeDraft } from '../model/timing.js';
-import { drawFake, drawThrow, faceAngle, makeCone, makePlayer, placeDisc } from '../render/pieces.js';
+import { drawFake, drawThrow, faceAngle, makeCone, makePlayer, placeDisc, placeSpares } from '../render/pieces.js';
 import { dPath, el, M, svg } from '../render/svg.js';
 import { $, f2 } from '../util.js';
 
@@ -52,7 +52,13 @@ export function renderEditor(){
     const g = makePlayer(p, gpl, {'data-kind':'player','data-id':p.id, transform:`translate(${f2(q[0])} ${f2(q[1])})${rot}`});
     if (pendingThrow === p.id) el('circle',{r:2.2,fill:'none',stroke:'var(--chalk)','stroke-width':.32,'stroke-dasharray':'.6 .4'},g);
   });
-  placeDisc(d);
+  // the step as it starts: a new disc is shown in full (it fades in only when playing), the old one still in hand
+  placeDisc(d && {...d, appear: undefined}); placeSpares(es >= 0 ? sparesAt(edModel, edStart()) : []);
+  // a new disc given at a spot: mark the spot, so it's clear where the front of the line has to stand
+  const nd = es >= 0 && draft.steps[es].newDisc;
+  if (nd && nd.at){ const c = M(...nd.at);
+    el('circle',{cx:f2(c[0]),cy:f2(c[1]),r:2.4,fill:'none',stroke:'var(--chalk)','stroke-width':.22,'stroke-dasharray':'.5 .4',opacity:.9,'pointer-events':'none'},gp);
+    el('circle',{cx:f2(c[0]),cy:f2(c[1]),r:.68,fill:'none',stroke:'var(--chalk)','stroke-width':.16,opacity:.9,'pointer-events':'none'},gp); }
   if (d && d.holder) { const r = gpl.querySelector(`[data-id="${CSS.escape(d.holder)}"] .ring`); if (r) r.setAttribute('opacity', 1); }
   // rotate handle: drag it to fix the direction a single selected defender faces
   const sd = selIds.size === 1 && draft.players.find(p => selIds.has(p.id) && p.team === 'D');

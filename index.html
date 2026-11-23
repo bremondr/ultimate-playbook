@@ -116,6 +116,7 @@
           <g id="g-paths"></g>
           <g id="g-cones"></g>
           <g id="g-players"></g>
+          <g id="g-spares"></g>
           <g id="g-disc">
             <ellipse id="disc-shadow" rx="0.7" ry="0.38" fill="var(--shadow)"/>
             <circle id="disc-body" r="0.68" fill="var(--disc)" stroke="#9fb0a2" stroke-width="0.14"/>
@@ -308,6 +309,8 @@
           <label class="tb"><span>Length in seconds (blank = automatic)</span><input id="e-dur" type="number" min="1" max="20" step="0.1" inputmode="decimal"></label>
           <div><label class="check"><input type="checkbox" id="e-arrows" checked> Show run arrows when playing</label>
             <p class="small">Turn off for a step like a return to the line. The throw still shows.</p></div>
+          <div><label class="tb"><span>Disc at the start</span><select id="e-newdisc"></select></label>
+            <p class="small" id="e-newdisc-note">For drills where each line has discs: the front of a line starts with a new one, with no throw back. The old disc stays with its player until they move.</p></div>
           <div class="sub" id="st-throw">
             <h4 id="tb-title">Throw</h4>
             <p class="small" id="tb-none">No throw in this step. Pick the Throw tool and tap the receiver.</p>

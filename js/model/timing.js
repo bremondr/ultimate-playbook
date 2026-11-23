@@ -41,6 +41,9 @@ export function timeDraft(d){
     }
     const out = {dur, title: st.title || `Step ${i+1}`, note: st.note || '', moves};
     if (st.arrows === false) out.arrows = false;   // this step's runs play without arrows
+    // a new disc at the start: to a player (an attacker) or to whoever is at a spot; compile.js works out who
+    if (st.newDisc && st.newDisc.to && byId[st.newDisc.to] && byId[st.newDisc.to].team === 'O') out.newDisc = {to: st.newDisc.to};
+    else if (st.newDisc && Array.isArray(st.newDisc.at)) out.newDisc = {at: st.newDisc.at.slice()};
     if (th){ out.throw = {from:th.from, to:th.to, type:typeOf(th), curve:curveOf(th), start: Math.min(.9, rel/dur), end: Math.min(1, cat/dur)}; if (th.fake) out.throw.fake = th.fake; if (GRIPS[th.grip]) out.throw.grip = th.grip; }
     return out;
   });

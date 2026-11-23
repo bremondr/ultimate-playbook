@@ -4,10 +4,10 @@ import { emit } from './events.js';
 import { builtins, libEntries, saveEntry, team } from './library.js';
 import { compile } from './model/compile.js';
 import { copyOfBuiltin, copyOfEntry, draftOfSaved, draftOfTeam } from './model/drafts.js';
-import { bez, discAt, facingDef, hand, pos, stepAt } from './model/motion.js';
+import { bez, discAt, facingDef, hand, pos, sparesAt, stepAt } from './model/motion.js';
 import { throwText } from './model/throws.js';
 import { timeDraft } from './model/timing.js';
-import { drawFake, drawThrow, faceAngle, makeCone, makePlayer, placeDisc } from './render/pieces.js';
+import { drawFake, drawThrow, faceAngle, makeCone, makePlayer, placeDisc, placeSpares } from './render/pieces.js';
 import { drawPitch } from './render/pitch.js';
 import { dPath, el, M, svg } from './render/svg.js';
 import { mode, orient, setField, setOrient } from './render/view.js';
@@ -62,7 +62,7 @@ function render(){
     playerEls[id].setAttribute('transform', `translate(${f2(p[0])} ${f2(p[1])})${rot}`);
     const ring = playerEls[id].querySelector('.ring'); if (ring) ring.setAttribute('opacity', d && d.holder === id ? 1 : 0);
   }
-  placeDisc(d);
+  placeDisc(d); placeSpares(sparesAt(model, t));
   $('#scrub').value = t;
   $('#time').textContent = `${t.toFixed(1)} / ${model.total.toFixed(1)} s`;
   const st = model.starts[i], dur = model.play.steps[i].dur, frac = Math.min(1, (t-st)/dur);
@@ -77,7 +77,9 @@ function fillCaption(i){
   $('#cap-n').textContent = `Step ${i+1} of ${model.play.steps.length}`;
   $('#cap-title').textContent = s.title;
   $('#cap-note').textContent = s.note || '';
-  $('#cap-meta').textContent = s.throw ? `Throw ${labelIn(model.play, s.throw.from)} → ${labelIn(model.play, s.throw.to)}: ${throwText(s.throw)}` : '';
+  const fresh = model.newDiscs && model.newDiscs[i] ? `New disc: ${labelIn(model.play, model.newDiscs[i])}` : '';
+  const thr = s.throw ? `Throw ${labelIn(model.play, s.throw.from)} → ${labelIn(model.play, s.throw.to)}: ${throwText(s.throw)}` : '';
+  $('#cap-meta').textContent = [fresh, thr].filter(Boolean).join(' · ');
 }
 /* The caption is as tall as this drill's longest step caption needs, at the current width and text size: the field
    keeps one size from step to step, and short captions (a drawn drill without notes) leave no empty band under it.

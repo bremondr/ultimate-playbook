@@ -6,7 +6,7 @@
    yet, the first tap says who starts with it.
    The tray (tap Throw again; it doesn't open by itself) sets up the next throw's type, flight and fake; the Step tab
    edits a throw already drawn with the same controls. */
-import { edPos, renderEditor } from '../canvas.js';
+import { edModel, edPos, renderEditor } from '../canvas.js';
 import { hint } from '../hint.js';
 import { commit } from '../history.js';
 import { draft, es, labelOf, pendingThrow, setPendingThrow } from '../session.js';
@@ -49,10 +49,15 @@ wireThrowControls('nt', () => null);
 
 /* ---------- who has the disc, and where a throw goes ---------- */
 const isAttacker = id => draft.players.some(p => p.id === id && p.team === 'O');
-// who has the disc at the start of step i (i may be one past the last step): the starter, then each throw's receiver
+// who has the disc at the start of step i (i may be one past the last step): the starter, then each throw's receiver,
+// and whoever gets a new disc at a step's start (the model works out who stands at a spot)
 function holderFor(i){
   let h = isAttacker(draft.disc) ? draft.disc : null;
-  for (let k = 0; k < Math.min(i, draft.steps.length); k++) if (draft.steps[k].throw) h = draft.steps[k].throw.to;
+  for (let k = 0; k < draft.steps.length && k <= i; k++){
+    const fresh = edModel && edModel.newDiscs ? edModel.newDiscs[k] : null;
+    if (fresh) h = fresh;
+    if (k < i && draft.steps[k].throw) h = draft.steps[k].throw.to;
+  }
   return h && isAttacker(h) ? h : null;
 }
 function lastThrowStep(){ for (let i = draft.steps.length - 1; i >= 0; i--) if (draft.steps[i].throw) return i; return -1; }
