@@ -64,14 +64,14 @@ export function renderEditor(){
   }
 
   if (es >= 0){
-    const st = draft.steps[es];
+    const st = draft.steps[es], faint = st.arrows === false ? .35 : 1;   // runs that won't show arrows when playing
     Object.entries(st.moves).forEach(([id, mv]) => {
       const p = draft.players.find(q => q.id === id); if (!p || p.follow) return;
       const start = edPos(id), pts = [start, ...mv.path], isD = p.team === 'D', vis = pts.slice();
       const a = vis[vis.length-2], b = vis[vis.length-1], dl = Math.hypot(b[0]-a[0], b[1]-a[1]) || 1, cut = Math.min(1.6, dl*.4);
       vis[vis.length-1] = [b[0]-(b[0]-a[0])/dl*cut, b[1]-(b[1]-a[1])/dl*cut];
       el('path',{d:dPath(pts),fill:'none',stroke:'transparent','stroke-width':1.6,'data-kind':'run','data-id':id,'pointer-events':'stroke'},gp);
-      el('path',{d:dPath(vis),fill:'none',stroke:isD?'var(--def)':'var(--off)','stroke-width':.3,'stroke-dasharray':'.9 .55','stroke-linejoin':'round','marker-end':isD?'url(#ah-d)':'url(#ah-o)','pointer-events':'none'},gp);
+      el('path',{d:dPath(vis),fill:'none',stroke:isD?'var(--def)':'var(--off)','stroke-width':.3,'stroke-dasharray':'.9 .55','stroke-linejoin':'round','marker-end':isD?'url(#ah-d)':'url(#ah-o)',opacity:faint,'pointer-events':'none'},gp);
       for (let k = 0; k < pts.length-1; k++){
         if (Math.hypot(pts[k+1][0]-pts[k][0], pts[k+1][1]-pts[k][1]) < 3) continue;
         const m = M((pts[k][0]+pts[k+1][0])/2, (pts[k][1]+pts[k+1][1])/2);

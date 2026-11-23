@@ -40,6 +40,7 @@ export function timeDraft(d){
       moves[id] = {path: s.path, start:a, end:b}; last[id] = s.path[s.path.length-1];
     }
     const out = {dur, title: st.title || `Step ${i+1}`, note: st.note || '', moves};
+    if (st.arrows === false) out.arrows = false;   // this step's runs play without arrows
     if (th){ out.throw = {from:th.from, to:th.to, type:typeOf(th), curve:curveOf(th), start: Math.min(.9, rel/dur), end: Math.min(1, cat/dur)}; if (th.fake) out.throw.fake = th.fake; if (GRIPS[th.grip]) out.throw.grip = th.grip; }
     return out;
   });

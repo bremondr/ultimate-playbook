@@ -36,7 +36,9 @@ function buildPieces(){
 function drawArrows(i){
   const g = $('#g-paths'); g.replaceChildren();
   if (!$('#t-arrows').checked) return;
-  Object.values(model.P).forEach(p => p.segs.forEach(s => {
+  // a step can hide its runs (a return to the line, say); its throw and fake are still drawn
+  const runs = model.play.steps[i].arrows !== false;
+  if (runs) Object.values(model.P).forEach(p => p.segs.forEach(s => {
     if (s.step !== i) return;
     const pts = s.pts.slice();
     const a = pts[pts.length-2], b = pts[pts.length-1], dl = Math.hypot(b[0]-a[0], b[1]-a[1]) || 1, cut = Math.min(1.5, dl*.4);
