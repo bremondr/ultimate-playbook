@@ -3,7 +3,7 @@
 
 Serves the folder with `python3 -m http.server`, opens it in headless Chrome (Python Playwright) and checks:
   1. no page errors and no console errors;
-  2. the main player and editor flows (with drawing throws, and Send feedback), on an iPad-sized and a phone-sized screen;
+  2. the main player and editor flows (with drawing throws, arrows per step, and Send feedback), on an iPad-sized and a phone-sized screen;
   3. the saved-drills path through a mocked `window.claude` team store (as when the page runs as a Claude artifact),
      and team repos (js/features/team.js) against the GitHub in memory that ?fakegithub plugs in: following a team
      from its link, its drills in the list, a token, Publish to team, a conflict, history and Remove from team;
@@ -338,6 +338,25 @@ def throw_flow(r, base):
     r.check(throws() == ['1>2', '2>3'] and r.text('#st-h') == 'Step 2 of 2', f'undo: {throws()}')
 
 
+def arrows_flow(r, base):
+    """A step's run arrows turned off (issue #38): the editor draws its runs faintly, playback leaves them out."""
+    p = r.page
+    runs = "document.querySelectorAll('#g-paths path[marker-end=\"url(#ah-o)\"]').length"
+    p.goto(base + '#angel'); r.wait("document.querySelector('#pname').textContent === 'Angel drill'")
+    r.click('#act'); r.check(r.visible('#studio'), 'editor open on a copy')
+    r.click('#strip .sbtn:nth-of-type(4)')   # step 3, "Return to the line": runs and a throw
+    r.tab('step'); r.check(p.is_checked('#e-arrows'), 'arrows on by default')
+    p.uncheck('#e-arrows')
+    r.check(p.evaluate("[...document.querySelectorAll('#g-paths path[marker-end=\"url(#ah-o)\"]')].every(e => e.getAttribute('opacity') === '0.35')"), 'runs drawn faintly in the editor')
+    r.snap('arrows-step-tab')
+    r.fold(); r.click('#s-preview'); r.check(r.text('#pkind') == 'Preview · not saved yet', 'preview')
+    p.locator('#steps li button').nth(2).click()
+    r.check(p.evaluate(runs) == 0 and p.locator('#g-paths > *').count() > 0, f'step 3 plays without run arrows, throw still drawn ({p.evaluate(runs)})')
+    r.snap('arrows-off')
+    p.locator('#steps li button').nth(1).click()
+    r.check(p.evaluate(runs) > 0, 'other steps keep their arrows')
+
+
 def team_flow(r, base, can_write):
     p = r.page
     p.goto(base); r.wait("document.querySelector('#sync').textContent.startsWith('No team drills')")
@@ -444,7 +463,7 @@ def main():
                 return Run(page, name, trace, args.shots)
 
             for vp, size in VIEWPORTS.items():
-                for flow in (player_flow, editor_flow, throw_flow):
+                for flow in (player_flow, editor_flow, throw_flow, arrows_flow):
                     r = page_for(f'{flow.__name__[:-5]}-{vp}', size)
                     try: flow(r, base)
                     except Exception as e: r.failures.append(f'{r.name}: stopped: {e}')
