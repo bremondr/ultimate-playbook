@@ -240,7 +240,7 @@
       <div id="tray-def"><label class="check"><input type="checkbox" id="def-auto"> Follow the nearest attacker</label>
         <p class="small">A following defender copies their player’s movement, so you don’t draw their runs.</p></div>
       <div id="tray-throw" class="stack">
-        <p class="small">Set the next throw, then tap the thrower and the receiver.</p>
+        <p class="small">Set up the next throw, then tap the receiver. A throw already drawn is changed in the Step tab.</p>
         <label class="tb"><span>Throw type</span><select id="nt-grip"></select></label>
         <div class="tb"><span>Flight</span><div class="seg full" id="nt-flight" role="group" aria-label="Flight">
           <button data-fl="0">Straight</button><button data-fl="-1" title="Bows out to the thrower’s left">Bent left</button><button data-fl="1" title="Bows out to the thrower’s right">Bent right</button></div></div>
@@ -307,11 +307,13 @@
           <label class="tb"><span>Title</span><input id="e-title" maxlength="60" autocomplete="off"></label>
           <label class="tb"><span>Coaching note</span><textarea id="e-note" rows="3" maxlength="400" placeholder="What players should do and look for"></textarea></label>
           <label class="tb"><span>Length in seconds (blank = automatic)</span><input id="e-dur" type="number" min="1" max="20" step="0.1" inputmode="decimal"></label>
+          <div><label class="check"><input type="checkbox" id="e-arrows" checked> Show run arrows when playing</label>
+            <p class="small">Turn off for a step like a return to the line. The throw still shows.</p></div>
           <div><label class="tb"><span>Disc at the start</span><select id="e-newdisc"></select></label>
             <p class="small" id="e-newdisc-note">For drills where each line has discs: the front of a line starts with a new one, with no throw back. The old disc stays with its player until they move.</p></div>
           <div class="sub" id="st-throw">
             <h4 id="tb-title">Throw</h4>
-            <p class="small" id="tb-none">No throw in this step. Pick the Throw tool, then tap the thrower and the receiver.</p>
+            <p class="small" id="tb-none">No throw in this step. Pick the Throw tool and tap the receiver.</p>
             <div id="tb-body" class="stack">
               <label class="tb"><span>Throw type</span><select id="tb-grip"></select></label>
               <div class="tb"><span>Flight</span><div class="seg full" id="tb-flight" role="group" aria-label="Flight">

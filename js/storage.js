@@ -27,7 +27,8 @@ export function serialize(d){
     steps: d.steps.map(st => ({title:(st.title||'').slice(0,60), note:(st.note||'').slice(0,400), dur: typeof st.dur === 'number' ? st.dur : null,
       moves: Object.fromEntries(Object.entries(st.moves).map(([id, m]) => [id, {path: m.path.flat().map(r2)}])),
       throw: st.throw ? Object.assign({from:st.throw.from, to:st.throw.to, type:typeOf(st.throw), curve:curveOf(st.throw)}, st.throw.fake ? {fake:st.throw.fake} : {}, GRIPS[st.throw.grip] ? {grip:st.throw.grip} : {}) : null,
-      // written only when used, so drills without it keep the same files and links
+      // written only when used (arrows only when off), so drills without them keep the same files and links
+      ...(st.arrows === false ? {arrows:false} : {}),
       ...(st.newDisc && st.newDisc.to ? {newDisc: {to: st.newDisc.to}} : st.newDisc && st.newDisc.at ? {newDisc: {at: [r2(st.newDisc.at[0]), r2(st.newDisc.at[1])]}} : {})}))
   };
 }
@@ -75,6 +76,7 @@ export function readRaw(o){
       if (typeof st.throw.grip === 'string' && GRIPS[st.throw.grip]) th.grip = st.throw.grip;
       else if (th.type === 'over') th.grip = 'hammer'; }
     const step = {title:str(st.title,60), note:str(st.note,400), dur: num(st.dur) && st.dur >= 1 ? Math.min(20, st.dur) : null, moves, throw:th};
+    if (st.arrows === false) step.arrows = false;
     // a new disc at the step's start: to an attacker, or to whoever is at a spot on the field
     const nd = st.newDisc;
     if (nd && typeof nd === 'object'){

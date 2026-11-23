@@ -40,6 +40,7 @@ export function timeDraft(d){
       moves[id] = {path: s.path, start:a, end:b}; last[id] = s.path[s.path.length-1];
     }
     const out = {dur, title: st.title || `Step ${i+1}`, note: st.note || '', moves};
+    if (st.arrows === false) out.arrows = false;   // this step's runs play without arrows
     // a new disc at the start: to a player (an attacker) or to whoever is at a spot; compile.js works out who
     if (st.newDisc && st.newDisc.to && byId[st.newDisc.to] && byId[st.newDisc.to].team === 'O') out.newDisc = {to: st.newDisc.to};
     else if (st.newDisc && Array.isArray(st.newDisc.at)) out.newDisc = {at: st.newDisc.at.slice()};

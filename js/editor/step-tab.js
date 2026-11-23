@@ -43,6 +43,7 @@ export function fillStep(){
     $('#e-title').value = st.title; $('#e-title').placeholder = `Step ${es+1}`;
     $('#e-note').value = st.note;
     $('#e-dur').value = typeof st.dur === 'number' ? st.dur : '';
+    $('#e-arrows').checked = st.arrows !== false;
     fillNewDisc(st);
     $('#e-rmstep').disabled = draft.steps.length < 2;
     $('#st-left').disabled = es === 0; $('#st-right').disabled = es === draft.steps.length - 1;
@@ -56,6 +57,14 @@ function moveStep(dir){
   commit(before); setStep(j);
   if (draft.steps.some((_, i) => stepWarn(i))) hint('Moved. Some throws no longer start with the disc holder; the marked steps need a new throw.', true);
 }
+// this step's run arrows in playback: stored only when off
+$('#e-arrows').addEventListener('change', e => {
+  if (es < 0) return;
+  const before = JSON.stringify(draft), st = draft.steps[es];
+  if (e.target.checked) delete st.arrows; else st.arrows = false;
+  commit(before); renderEditor();
+  hint(e.target.checked ? 'This step’s runs show arrows when playing.' : 'This step’s runs play without arrows; they’re drawn faintly here so you can still edit them.');
+});
 /* a new disc at the start of this step: continues, with a player, or at the spot where a player stands now */
 function fillNewDisc(st){
   const s = $('#e-newdisc'), nd = st.newDisc, os = draft.players.filter(p => p.team === 'O');
