@@ -1,5 +1,5 @@
 /* ---------- steps: the step strip under the field, and the Step tab (title, note, length, the step's throw) ---------- */
-import { edPlay, renderEditor, stepWarn } from './canvas.js';
+import { edModel, edPlay, edPos, renderEditor, stepWarn } from './canvas.js';
 import { clearHint, hint } from './hint.js';
 import { commit } from './history.js';
 import { setTool } from './rail.js';
@@ -43,6 +43,7 @@ export function fillStep(){
     $('#e-title').value = st.title; $('#e-title').placeholder = `Step ${es+1}`;
     $('#e-note').value = st.note;
     $('#e-dur').value = typeof st.dur === 'number' ? st.dur : '';
+    fillNewDisc(st);
     $('#e-rmstep').disabled = draft.steps.length < 2;
     $('#st-left').disabled = es === 0; $('#st-right').disabled = es === draft.steps.length - 1;
   }
@@ -55,6 +56,31 @@ function moveStep(dir){
   commit(before); setStep(j);
   if (draft.steps.some((_, i) => stepWarn(i))) hint('Moved. Some throws no longer start with the disc holder; the marked steps need a new throw.', true);
 }
+/* a new disc at the start of this step: continues, with a player, or at the spot where a player stands now */
+function fillNewDisc(st){
+  const s = $('#e-newdisc'), nd = st.newDisc, os = draft.players.filter(p => p.team === 'O');
+  // each option says it all: a closed menu shows only the option, not its group
+  s.replaceChildren(new Option('Continues from the last step', ''));
+  const withP = document.createElement('optgroup'); withP.label = 'A new disc for a player';
+  os.forEach(p => withP.appendChild(new Option(`New disc with ${p.label}`, 'to:' + p.id)));
+  const atP = document.createElement('optgroup'); atP.label = 'A new disc for whoever stands at a spot';
+  if (nd && nd.at) atP.appendChild(new Option('New disc at the marked spot', 'at:keep'));
+  os.forEach(p => atP.appendChild(new Option(`New disc at ${p.label}’s spot (whoever is there)`, 'at:' + p.id)));
+  s.append(withP, atP);
+  s.value = !nd ? '' : nd.to ? 'to:' + nd.to : 'at:keep';
+}
+$('#e-newdisc').addEventListener('change', e => {
+  if (es < 0) return;
+  const before = JSON.stringify(draft), st = draft.steps[es], [kind, id] = e.target.value.split(':');
+  if (!kind) delete st.newDisc;
+  else if (kind === 'to') st.newDisc = {to: id};
+  else if (id !== 'keep') st.newDisc = {at: edPos(id).map(v => Math.round(v * 2) / 2)};   // where they stand as the step starts
+  commit(before); renderEditor(); fillNewDisc(st);
+  const who = edModel.newDiscs[es];
+  hint(!st.newDisc ? 'The disc continues from the last step.'
+    : st.newDisc.to ? `${labelOf(id)} gets a new disc as this step starts. The old disc stays with its player until they move.`
+    : who ? `A new disc for whoever stands at the marked spot: ${labelOf(who)} now.` : 'Nobody stands at that spot as this step starts, so there is no new disc.', !!st.newDisc && !who);
+});
 $('#st-left').addEventListener('click', () => moveStep(-1));
 $('#st-right').addEventListener('click', () => moveStep(1));
 $('#e-rmstep').addEventListener('click', () => {

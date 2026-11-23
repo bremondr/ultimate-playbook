@@ -3,7 +3,7 @@
 
 Serves the folder with `python3 -m http.server`, opens it in headless Chrome (Python Playwright) and checks:
   1. no page errors and no console errors;
-  2. the main player and editor flows (with drawing throws, and Send feedback), on an iPad-sized and a phone-sized screen;
+  2. the main player and editor flows (with drawing throws, new discs, and Send feedback), on an iPad-sized and a phone-sized screen;
   3. the saved-drills path through a mocked `window.claude` team store (as when the page runs as a Claude artifact),
      and team repos (js/features/team.js) against the GitHub in memory that ?fakegithub plugs in: following a team
      from its link, its drills in the list, a token, Publish to team, a conflict, history and Remove from team;
@@ -338,6 +338,35 @@ def throw_flow(r, base):
     r.check(throws() == ['1>2', '2>3'] and r.text('#st-h') == 'Step 2 of 2', f'undo: {throws()}')
 
 
+def new_disc_flow(r, base):
+    """A new disc at the front of a line instead of a throw back (issue #39), on a copy of the angel drill."""
+    p = r.page
+    model = "import('./js/editor/canvas.js').then(c => ({fresh: c.edModel.newDiscs, warn: document.querySelectorAll('#strip .dot').length}))"
+    p.goto(base + '#angel'); r.wait("document.querySelector('#pname').textContent === 'Angel drill'")
+    r.click('#act'); r.click('#strip .sbtn:nth-of-type(4)')   # step 3, "Return to the line": B1 throws back to A2
+    r.tab('step'); r.click('#tb-remove')
+    r.check(p.evaluate(model)['warn'] > 0, 'without the throw back, the next throw is from the wrong player')
+    p.select_option('#e-newdisc', 'to:A2')
+    st = p.evaluate(model)
+    r.check(st['fresh'][2] == 'A2' and st['warn'] == 0, f'a new disc for A2 makes the next throw valid: {st}')
+    r.check(r.text('#hint').startswith('A2 gets a new disc'), f'hint: {r.text("#hint")}')
+    r.snap('new-disc-editor')
+    # the same by spot: whoever stands where A2 stands now
+    p.select_option('#e-newdisc', 'at:A2')
+    st = p.evaluate(model)
+    r.check(st['fresh'][2] == 'A2' and p.input_value('#e-newdisc') == 'at:keep', f'by spot: {st}')
+    r.snap('new-disc-spot')
+    r.fold(); r.click('#s-preview')
+    p.locator('#steps li button').nth(2).click()
+    r.check(r.text('#cap-meta').startswith('New disc: A2'), f'caption: {r.text("#cap-meta")}')
+    r.check(p.locator('#g-spares > *').count() == 1, 'B1 still holds the old disc as the step starts')
+    r.snap('new-disc-start')
+    p.eval_on_selector('#scrub', "e => { const s = [...document.querySelectorAll('#steps li')]; e.value = +e.value + 1.5; e.dispatchEvent(new Event('input')); }")
+    r.check(p.locator('#g-spares > *').count() == 0, 'the old disc is put away once B1 runs back')
+    p.keyboard.press('Escape'); r.click('#act'); p.keyboard.press('Control+z')
+    r.check(p.evaluate(model)['fresh'][2] == 'A2', 'undo goes back to the new disc by name')
+
+
 def team_flow(r, base, can_write):
     p = r.page
     p.goto(base); r.wait("document.querySelector('#sync').textContent.startsWith('No team drills')")
@@ -444,7 +473,7 @@ def main():
                 return Run(page, name, trace, args.shots)
 
             for vp, size in VIEWPORTS.items():
-                for flow in (player_flow, editor_flow, throw_flow):
+                for flow in (player_flow, editor_flow, throw_flow, new_disc_flow):
                     r = page_for(f'{flow.__name__[:-5]}-{vp}', size)
                     try: flow(r, base)
                     except Exception as e: r.failures.append(f'{r.name}: stopped: {e}')

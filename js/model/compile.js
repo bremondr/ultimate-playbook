@@ -6,9 +6,11 @@ import { curveOf, typeOf } from './throws.js';
 export function compile(play){
   const P = {}, last = {};
   play.players.forEach(p => { P[p.id] = {def:p, init:p.at, segs:[]}; if (p.at && !p.follow) last[p.id] = p.at; });
-  const starts = [], throws = [], fakes = []; let T = 0;
+  const starts = [], throws = [], fakes = [], newDiscs = []; let T = 0;
   play.steps.forEach((st, i) => {
     starts.push(T); const D = st.dur;
+    // a new disc at the step's start (drills where each line has discs): to a player, or to whoever is at a spot
+    newDiscs.push(newDiscHolder(P, st.newDisc, last));
     Object.entries(st.moves || {}).forEach(([id, mv]) => {
       if (!P[id] || !last[id]) return;
       const sp = Array.isArray(mv) ? {path:mv} : mv;
@@ -25,14 +27,17 @@ export function compile(play){
     T += D;
   });
   throws.forEach(th => meetOnTheRun(P, th));
+  // what happens to the disc, in time order: throws, and new discs at the start of a step
+  const fresh = newDiscs.map((to, i) => to && {t0: starts[i], to, nd: true, step: i}).filter(Boolean);
+  const discLog = [...throws, ...fresh].sort((a, b) => a.t0 - b.t0 || (a.nd ? -1 : 1));
   // the model carries its field, so working out positions needs nothing from outside
-  const m = {play, field:fieldOf(play.field), P, starts, throws, fakes, marks:{}, total:T};
+  const m = {play, field:fieldOf(play.field), P, starts, throws, fakes, marks:{}, total:T, newDiscs, discLog, spares: spareDiscs(play, P, discLog, T)};
   // a marking defender switches to a new player at these moments
-  const order = throws.slice().sort((a, b) => a.t0 - b.t0);
+  const order = discLog;
   Object.values(P).forEach(({def}) => {
     const mk = def.mark; if (!mk || def.team !== 'D') return;
     const ev = [];
-    if (mk.mode === 'disc'){ if (play.disc && P[play.disc]) ev.push({t:-1, target:play.disc}); order.forEach(th => ev.push({t:th.t0 + .1, target:th.to})); }
+    if (mk.mode === 'disc'){ if (play.disc && P[play.disc]) ev.push({t:-1, target:play.disc}); order.forEach(th => ev.push({t:th.nd ? th.t0 : th.t0 + .1, target:th.to})); }
     else if (mk.mode === 'handler'){
       // marks a row player only while they hold the disc at the front spot; otherwise waits on that spot
       const seq = (mk.order || []).filter(id => P[id]); if (!seq.length || !P[seq[0]].init) return;
@@ -40,6 +45,7 @@ export function compile(play){
       let cur = seq.includes(play.disc) && near(play.disc, 0) ? play.disc : '@spot';
       ev.push({t:-1, target:cur});
       order.forEach(th => {
+        if (th.nd){ if (seq.includes(th.to) && near(th.to, th.t0)){ cur = th.to; ev.push({t:th.t0, target:cur}); } return; }
         if (th.from === cur){ cur = '@spot'; ev.push({t:th.t0 + .1, target:cur}); }
         if (seq.includes(th.to) && near(th.to, th.t1)){ cur = th.to; ev.push({t:Math.max(th.t0 + .15, th.t1 - .25), target:cur}); }
       });
@@ -48,7 +54,7 @@ export function compile(play){
     else {
       const seq = (mk.order || []).filter(id => P[id]); if (!seq.length) return;
       let k = 0; ev.push({t:-1, target:seq[0]});
-      order.forEach(th => { if (th.from === seq[k] && k < seq.length - 1){ k++; ev.push({t:th.t0 + .15, target:seq[k]}); } });
+      order.forEach(th => { if (!th.nd && th.from === seq[k] && k < seq.length - 1){ k++; ev.push({t:th.t0 + .15, target:seq[k]}); } });
     }
     if (ev.length){ const sp = ev.spot; ev.sort((a, b) => a.t - b.t); ev.spot = sp; m.marks[def.id] = ev; }
   });
@@ -56,6 +62,36 @@ export function compile(play){
     if (th.fake === 'up' || th.fake === 'mirror') fakes.push({by:th.from, to:th.to, kind:th.fake, t0:Math.max(th.S, th.t0-.85), t1:th.t0-.2, tc:th.t1, step:th.step});
   });
   return m;
+}
+/* Who gets a new disc at a step's start: the player named, or the attacker nearest the spot (within 4 m), from
+   where everyone stands as the step starts. null when there is no new disc, or nobody to give it to. */
+export const SPOT_REACH = 4;
+function newDiscHolder(P, nd, last){
+  if (!nd) return null;
+  if (nd.to) return P[nd.to] && P[nd.to].def.team === 'O' && last[nd.to] ? nd.to : null;
+  if (!Array.isArray(nd.at)) return null;
+  let best = null, bd = SPOT_REACH;
+  for (const id in P){
+    if (P[id].def.team !== 'O' || !last[id]) continue;
+    const d = Math.hypot(last[id][0] - nd.at[0], last[id][1] - nd.at[1]);
+    if (d <= bd){ bd = d; best = id; }
+  }
+  return best;
+}
+/* The old disc when a new one is given out: it stays in its holder's hand until they start their next run (or a
+   throw comes to them), then it is put away. {holder, t0, t1}: in the hand from t0, gone (faded) after t1. */
+function spareDiscs(play, P, discLog, total){
+  let holder = play.disc && P[play.disc] ? play.disc : null;
+  const out = [];
+  for (const e of discLog){
+    if (!e.nd){ holder = e.to; continue; }
+    if (holder && holder !== e.to){
+      const run = P[holder].segs.find(s => s.t0 >= e.t0 - 1e-6), caught = discLog.find(x => !x.nd && x.to === holder && x.t0 >= e.t0);
+      out.push({holder, t0: e.t0, t1: Math.min(run ? run.t0 : total, caught ? caught.t0 : total)});
+    }
+    holder = e.to;
+  }
+  return out;
 }
 /* Disc and receiver meet: when the receiver runs in the throw's step, the disc lands exactly as the
    run ends, and the receiver keeps running speed into the catch instead of slowing to a stop and waiting.

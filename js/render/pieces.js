@@ -67,8 +67,19 @@ export function placeDisc(d){
   const g = $('#g-disc');
   if (!d){ g.setAttribute('visibility','hidden'); return; }
   g.removeAttribute('visibility');
+  // a new disc fades in (d.appear from 0 to 1)
+  if (d.appear !== undefined) g.setAttribute('opacity', f2(d.appear)); else g.removeAttribute('opacity');
   const dp = M(d.x, d.y);
   $('#disc-shadow').setAttribute('transform', `translate(${f2(dp[0]+d.h*.5)} ${f2(dp[1]+d.h*.3)})`);
   $('#disc-shadow').setAttribute('opacity', d.h ? .55 : .35);
   const body = $('#disc-body'); body.setAttribute('cx', f2(dp[0])); body.setAttribute('cy', f2(dp[1]-d.h*1.4)); body.setAttribute('r', f2(.68+d.h*.12));
+}
+/* the old discs still in someone's hand after a new disc was given out (motion.js, sparesAt): resting, fading out */
+export function placeSpares(list){
+  const g = $('#g-spares'); g.replaceChildren();
+  (list || []).forEach(d => {
+    const dp = M(d.x, d.y), w = el('g', {opacity: f2(d.opacity), 'pointer-events': 'none'}, g);
+    el('ellipse', {rx: .7, ry: .38, fill: 'var(--shadow)', opacity: .35, transform: `translate(${f2(dp[0])} ${f2(dp[1])})`}, w);
+    el('circle', {cx: f2(dp[0]), cy: f2(dp[1]), r: .68, fill: 'var(--disc)', stroke: '#9fb0a2', 'stroke-width': .14}, w);
+  });
 }

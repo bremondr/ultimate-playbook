@@ -62,10 +62,14 @@ export function bez(a, b, curve){
   return {a, b, c:[(a[0]+b[0])/2 - dy/dist*curve*dist, (a[1]+b[1])/2 + dx/dist*curve*dist], dist};
 }
 export function discAt(m, t){
-  let holder = m.play.disc;
-  if (!holder || !m.P[holder]) return null;
-  for (const th of m.throws){
+  let holder = m.play.disc && m.P[m.play.disc] ? m.play.disc : null, since = null;
+  const log = m.discLog || m.throws;
+  if (!holder && !log.some(e => e.nd)) return null;
+  for (const th of log){
     if (t < th.t0) break;
+    // a new disc at a step's start: it appears in the new holder's hand
+    if (th.nd){ holder = th.to; since = th.t0; continue; }
+    since = null;
     if (t < th.t1){
       const z = bez(hand(m, th.from, th.t0), hand(m, th.to, th.t1), th.curve||0), u = (t-th.t0)/(th.t1-th.t0), v = 1-u;
       const hmax = th.type === 'over' ? Math.min(3.2, z.dist/7) : Math.min(1.6, z.dist/14);
@@ -73,7 +77,9 @@ export function discAt(m, t){
     }
     holder = th.to;
   }
-  const h = hand(m, holder, t);
+  if (!holder) return null;
+  const h = hand(m, holder, t), appear = since === null ? 1 : Math.min(1, (t - since)/.35);
+  if (appear < 1) return {x:h[0], y:h[1], h:0, holder, appear};
   for (const f of (m.fakes || [])){
     if (f.by === holder && t > f.t0 && t < f.t1){
       const dir = fakeDir(m, f, t), k = Math.sin(Math.PI*(t-f.t0)/(f.t1-f.t0))*1.7;
@@ -81,5 +87,13 @@ export function discAt(m, t){
     }
   }
   return {x:h[0], y:h[1], h:0, holder};
+}
+/* The old discs still in someone's hand after a new disc was given out (see compile.js): [{x, y, opacity}].
+   Each fades out over .4 s once its holder starts their next run. */
+export function sparesAt(m, t){
+  return (m.spares || []).filter(s => t >= s.t0 - 1e-6 && t < s.t1 + .4).map(s => {
+    const h = hand(m, s.holder, t);
+    return {x: h[0], y: h[1], opacity: t <= s.t1 ? 1 : 1 - (t - s.t1)/.4};
+  });
 }
 export function stepAt(m, t){ let i = 0; for (let k = 0; k < m.starts.length; k++) if (t >= m.starts[k] - 1e-6) i = k; return i; }
