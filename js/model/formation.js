@@ -2,27 +2,63 @@
 import { fieldOf } from '../data/fields.js';
 import { r2 } from '../util.js';
 
+/* Offense formations from the tactics overview, for the chosen field and team size (7 or 5).
+   The offense attacks +x and the thrower's left is -y. H1 always holds the disc. A type ending in -r is the
+   mirror image (across the field's long axis) of the same type ending in -l. */
+export const MIRRORED = id => /-r$/.test(id);
 export function formation(type, n, fieldKey, withDef, force){
-  const Fd = fieldOf(fieldKey), W = Fd.W, cy = W/2, small = Fd.L < 90;
-  const x0 = Fd.ez + (small ? 12 : 22), gap = small ? 8 : 11, sp = small ? 3.5 : 4.5;
+  const Fd = fieldOf(fieldKey), W = Fd.W, L = Fd.L, cy = W/2, small = Fd.L < 90, seven = n >= 7;
+  const k = small ? .75 : 1, x0 = Fd.ez + (small ? 12 : 22), gap = small ? 8 : 11, sp = small ? 3.5 : 4.5, gl = L - Fd.ez;
   const O = [];
-  const add = (id, label, x, y, role) => O.push({id, team:'O', label, at:[r2(x), r2(y)], role});
-  let nh;
-  if (type === 'ho'){
-    nh = n >= 7 ? 3 : 2;
-    if (nh === 3){ add('h1','H1',x0,cy,'h'); add('h2','H2',x0-2,cy-W*.3,'h'); add('h3','H3',x0-2,cy+W*.3,'h'); }
-    else { add('h1','H1',x0,cy-W*.14,'h'); add('h2','H2',x0-2,cy+W*.24,'h'); }
-    const k = n - nh, cx = x0 + (small ? 12 : 16);
-    for (let i = 0; i < k; i++) add('c'+(i+1), String(i+1), cx, W*(i+1)/(k+1), 'c');
-  } else {
-    nh = 2;
-    add('h1','H1',x0,cy,'h');
-    if (type === 'vert') add('h2','H2',x0-1,cy-W*.27,'h');
-    else add('h2','H2',x0-(small?4.5:6),cy-(small?3.5:5),'h');
-    const k = n - 2, sy = type === 'side' ? W*.2 : cy, sx = x0 + gap - (type === 'side' ? 2 : 0);
-    for (let i = 0; i < k; i++) add('c'+(i+1), String(i+1), sx + i*sp, sy, 'c');
+  let nc = 0;
+  const H = (x, y) => { const i = O.filter(p => p.label[0] === 'H').length + 1; O.push({id:'h'+i, team:'O', label:'H'+i, at:[x, y]}); };
+  const C = (x, y) => { nc++; O.push({id:'c'+nc, team:'O', label:String(nc), at:[x, y]}); };
+  const column = (count, x, y, s = sp) => { for (let i = 0; i < count; i++) C(x + i*s, y); };
+  const base = String(type === 'side' ? 'side-l' : type).replace(/-r$/, '-l');
+  switch (base){
+    case 'vert-dump':            // two handlers, the dump close behind the thrower, the rest in one line
+      H(x0, cy); H(x0 - (small ? 4.5 : 6), cy - (small ? 3.5 : 5));
+      column(n - 2, x0 + gap, cy); break;
+    case 'ho':                   // handlers across the back, cutters in a line across the field
+      if (seven){ H(x0, cy); H(x0-2, cy - W*.3); H(x0-2, cy + W*.3); }
+      else { H(x0, cy - W*.14); H(x0-2, cy + W*.24); }
+      for (let i = 0, c = n - O.length; i < c; i++) C(x0 + (small ? 12 : 16), W*(i+1)/(c+1));
+      break;
+    case 'side-l':               // the stack along the left sideline, the right side open
+      H(x0, cy); H(x0 - (small ? 4.5 : 6), cy - (small ? 3.5 : 5));
+      column(n - 2, x0 + gap - 2, W*.2); break;
+    case 'spread':               // handlers across the back, cutters in pairs near each sideline, the middle open
+      if (seven){ H(x0, cy); H(x0-2, cy - W*.3); H(x0-2, cy + W*.3); } else H(x0, cy);
+      [W*.12, W*.88].forEach(y => { C(x0 + 12*k, y); C(x0 + 20*k, y); });
+      break;
+    case 'iso-l':                // one cutter alone on the left, the others cleared to the right
+      if (seven){ H(x0, cy); H(x0-2, cy - W*.3); H(x0-2, cy + W*.3); } else { H(x0, cy); H(x0-2, cy + W*.3); }
+      C(x0 + 14*k, W*.2);
+      column(n - O.length, x0 + gap, W*.82); break;
+    case 'split-l':              // two short vertical stacks: three cutters on the left, two on the right (5 v 5: 2-1)
+      H(x0, cy); H(x0 - 3*k, cy + W*.22);
+      column(seven ? 3 : 2, x0 + gap, W*.27); column(seven ? 2 : 1, x0 + gap, W*.73); break;
+    case 'swing-l':              // the disc near the left sideline, the dump behind toward the middle, the swing across
+      H(x0, W*.2); H(x0 - 6*k, W*.42); H(x0 - 2, W*.75);
+      column(n - 3, x0 + gap, cy); break;
+    case 'ez-iso-l':             // just outside the end zone: handlers across, cutters at the back, one iso near the line
+      if (seven){ H(gl - 6*k, cy); H(gl - 7*k, cy - W*.3); H(gl - 7*k, cy + W*.3); } else { H(gl - 6*k, cy); H(gl - 7*k, cy + W*.3); }
+      C(gl + 3*k, W*.2);
+      (seven ? [.4, .6, .8] : [.5, .75]).forEach(f => C(L - 3*k, W*f)); break;
+    case 'ez-vert':              // the stack starts at the goal line and runs into the end zone
+      H(gl - 6*k, cy); H(gl - 8*k, cy - W*.27); if (seven) H(gl - 7*k, cy + W*.27);
+      column(n - O.length, gl + 2*k, cy); break;
+    case 'zone-o':               // against a zone: handlers across the top, poppers in the gaps, deep behind
+      if (seven){ H(x0, cy); H(x0-1, cy - W*.3); H(x0-1, cy + W*.3);
+        C(x0 + 10*k, cy - W*.15); C(x0 + 10*k, cy + W*.15); C(x0 + 30*k, cy - W*.25); C(x0 + 30*k, cy + W*.25); }
+      else { H(x0, cy - W*.18); H(x0, cy + W*.18); C(x0 + 10*k, cy - W*.2); C(x0 + 10*k, cy + W*.2); C(x0 + 28*k, cy); }
+      break;
+    default:                     // 'vert': handlers behind the disc, the cutters in one line down the middle
+      H(x0, cy); H(x0-3*k, cy - W*.27); if (seven) H(x0-1, cy + W*.27);
+      column(n - O.length, x0 + gap, cy);
   }
-  const players = O.map(({role, ...p}) => p);
+  const flip = MIRRORED(String(type));
+  const players = O.map(p => ({...p, at:[r2(p.at[0]), r2(flip ? W - p.at[1] : p.at[1])]}));
   if (withDef) addPersonDefense(players, 'h1', force);
   return players;
 }
