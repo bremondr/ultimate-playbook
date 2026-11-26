@@ -19,3 +19,23 @@ export const FORMATIONS = [
   {id:'ez-vert', name:'End zone vertical stack'},
   {id:'zone-o', name:'Zone offense'}
 ];
+
+/* ---------- defenses offered on top of a formation (placed by model/defense.js) ----------
+   person: one defender follows each attacker, the one on the disc marks. zone: free defenders who hold their
+   spot, plus a mark that moves with the disc where the zone has one. */
+export const DEFENSES = [
+  {id:'none', name:'No defense'},
+  {id:'left', name:'Force left', kind:'person'},
+  {id:'right', name:'Force right', kind:'person'},
+  {id:'straight', name:'Straight up', kind:'person'},
+  {id:'middle', name:'Force middle', kind:'person'},
+  {id:'trap-l', name:'Trap left', kind:'person'},
+  {id:'trap-r', name:'Trap right', kind:'person'},
+  {id:'cup', name:'Cup zone', kind:'zone'},
+  {id:'331', name:'3-3-1 zone', kind:'zone'},
+  {id:'232', name:'2-3-2 zone', kind:'zone'},
+  {id:'wall', name:'Wall (1-3-3)', kind:'zone'},
+  {id:'clam-l', name:'Clam left', kind:'zone'},
+  {id:'clam-r', name:'Clam right', kind:'zone'}
+];
+export const defenseOf = id => DEFENSES.find(d => d.id === id) || null;

@@ -337,12 +337,10 @@
           <label class="tb"><span>Start from an existing drill</span><select id="e-from"></select></label>
           <div class="tb"><span>Start from a formation</span>
             <div class="forms" id="e-forms"></div>
-            <label class="check"><input type="checkbox" id="e-formdef" checked> With person defense</label>
           </div>
-          <div class="tb"><span>Person defense</span>
-            <div class="seg full" id="e-force" role="group" aria-label="Force"><button data-fc="left">Force left</button><button data-fc="straight">Straight</button><button data-fc="right">Force right</button></div>
-            <button class="ghost" id="e-person" type="button">Put a defender on every attacker</button>
-            <span class="small">Left and right as the thrower looks downfield. For a right-handed thrower, force right is force forehand.</span>
+          <div class="tb"><span>Defense</span>
+            <div class="forms" id="e-defs"></div>
+            <span class="small">Tap a defense to put it on the attackers on the field now. A formation comes with the defense picked here. Person defenders follow their player through every step; zone defenders hold their spot. Left and right as the thrower looks downfield: for a right-handed thrower, force right is force forehand.</span>
           </div>
           <p class="small" id="e-status" role="status"></p>
           <button class="link danger" id="e-delete" type="button" hidden>Delete this drill</button>

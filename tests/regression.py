@@ -284,7 +284,18 @@ def editor_flow(r, base):
     r.check(r.page.locator('#g-players .oteam[data-kind="player"]').count() == 7, 'end zone iso: seven attackers')
     r.snap('formation-ez'); r.fold(); r.tab('drill')
     r.click('#e-forms .fbtn[data-form="ho"]')
-    r.click('#e-field button[data-fd="small"]'); r.click('#e-force button[data-fc="left"]'); r.click('#e-person')
+    r.click('#e-field button[data-fd="small"]')
+    # defense picker: every choice is offered; a zone, then person defense on the attackers on the field
+    r.check(r.page.locator('#e-defs .fbtn').count() == 13, 'every defense offered')
+    r.click('#e-defs .fbtn[data-def="cup"]')
+    dteam = '#g-players .dteam[data-kind="player"]'
+    r.check(r.page.locator(dteam).count() == 7, f'cup zone: seven defenders ({r.page.locator(dteam).count()})')
+    r.check(r.text('#hint').startswith('Cup zone: 7 defenders'), f'cup zone hint: {r.text("#hint")}')
+    r.snap('defense-cup'); r.fold(); r.tab('drill')
+    r.click('#e-defs .fbtn[data-def="none"]'); r.check(r.page.locator(dteam).count() == 0, 'no defense')
+    r.click('#e-defs .fbtn[data-def="left"]')
+    r.check(r.page.get_attribute('#e-defs .fbtn[data-def="left"]', 'aria-pressed') == 'true', 'force left picked')
+    r.check(r.page.locator(dteam).count() == 7 and r.text('#hint').startswith('Force left: 7 defenders'), f'force left: {r.text("#hint")}')
     r.snap('formation'); r.fold()
     r.click('#zoom button[data-z="fit"]')
     # step 1: a run and a throw

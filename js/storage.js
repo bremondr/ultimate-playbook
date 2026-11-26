@@ -1,5 +1,6 @@
 /* ---------- storage: shared team store, or this browser ---------- */
 import { fieldOf } from './data/fields.js';
+import { defenseOf } from './data/formations.js';
 import { emit } from './events.js';
 import { setTeam, team } from './library.js';
 import { FACES } from './model/facing.js';
@@ -17,6 +18,8 @@ export function serialize(d){
   return {
     name: d.name.slice(0,80), kind: d.kind, summary: (d.summary||'').slice(0,400), disc: d.disc || null,
     field: d.field === 'small' ? 'small' : 'full', format: d.format === 5 ? 5 : 7, force: FORCES[d.force] ? d.force : 'right',
+    // the defense picked in the Drill tab, written only when there is one, so other drills keep the same files and links
+    ...(defenseOf(d.defense)?.kind ? {defense: d.defense} : {}),
     players: d.players.map(p => { const r = {id:p.id, team:p.team};
       if (p.label) r.label = p.label; if (p.at) r.at = [r2(p.at[0]), r2(p.at[1])];
       if (p.follow){ r.follow = p.follow; r.offset = [r2(p.offset[0]), r2(p.offset[1])]; r.lag = p.lag ?? .35; }
@@ -88,6 +91,7 @@ export function readRaw(o){
   if (!steps.length) return null;
   return {name: str(o.name,80) || 'Untitled drill', kind: o.kind === 'Play' ? 'Play' : 'Drill', summary: str(o.summary,400),
     field: o.field === 'small' ? 'small' : 'full', format: o.format === 5 ? 5 : 7, force: FORCES[o.force] ? o.force : 'right',
+    ...(defenseOf(o.defense)?.kind ? {defense: o.defense} : {}),
     disc: oIds.has(o.disc) ? o.disc : null, players, steps, createdAt: num(o.createdAt) ? o.createdAt : 0};
 }
 // a library entry from a stored drill
