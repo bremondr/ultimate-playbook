@@ -10,7 +10,7 @@ import { fieldOf } from '../data/fields.js';
 import { FORMATIONS } from '../data/formations.js';
 import { libEntries } from '../library.js';
 import { copyOfEntry } from '../model/drafts.js';
-import { addPersonDefense, FORCES, formation, personOffset } from '../model/formation.js';
+import { addPersonDefense, FORCES, formation, formationSummary, personOffset } from '../model/formation.js';
 import { formationThumb } from '../render/thumb.js';
 import { orient, setField } from '../render/view.js';
 import { $, clamp, clone, r2 } from '../util.js';
@@ -30,15 +30,25 @@ export function renderForms(){
     fm.appendChild(b);
   });
 }
+/* The summary follows the formation while it is empty or still the text the last formation wrote; once the
+   person has written their own, a new formation leaves it alone and says so. */
+let autoSummary = '';
+function followSummary(text){
+  const cur = (draft.summary || '').trim();
+  if (cur && cur !== autoSummary.trim()) return false;
+  draft.summary = autoSummary = text; $('#e-sum').value = text;
+  return true;
+}
 function applyFormation(type){
   const before = JSON.stringify(draft), cones = draft.players.filter(p => p.team === 'cone');
   draft.players = [...formation(type, draft.format, draft.field, $('#e-formdef').checked, draft.force), ...cones];
   draft.disc = 'h1';
   draft.steps.forEach(st => { st.moves = {}; st.throw = null; });
+  const summed = followSummary(formationSummary(type, draft.format));
   setSelIds([]); setPendingThrow(null); setEs(-1);
   commit(before); fillStep(); setTool('select'); refitView(); if (zoom === 'fit') layoutField(true); renderEditor();
   const name = FORMATIONS.find(f => f.id === type).name;
-  hint(`${name} placed for ${draft.format} v ${draft.format}${$('#e-formdef').checked ? ', ' + FORCES[draft.force].toLowerCase() : ''}. Drag anyone to adjust, then add a step to draw the cuts.${/"moves":\{"|"throw":\{/.test(before) ? ' Runs and throws were cleared. Undo brings them back.' : ''}`);
+  hint(`${name} placed for ${draft.format} v ${draft.format}${$('#e-formdef').checked ? ', ' + FORCES[draft.force].toLowerCase() : ''}. Drag anyone to adjust, then add a step to draw the cuts.${/"moves":\{"|"throw":\{/.test(before) ? ' Runs and throws were cleared. Undo brings them back.' : ''}${summed ? '' : ' Your summary was kept.'}`);
 }
 function rescaleDraft(from, to){
   const sx = to.L/from.L, sy = to.W/from.W, sc = q => [r2(clamp(q[0]*sx,0,to.L)), r2(clamp(q[1]*sy,0,to.W))];
