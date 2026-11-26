@@ -282,8 +282,13 @@ def editor_flow(r, base):
     r.check(r.page.locator('#e-forms .fbtn').count() == 16, 'every formation offered')
     r.click('#e-forms .fbtn[data-form="ez-iso-r"]')
     r.check(r.page.locator('#g-players .oteam[data-kind="player"]').count() == 7, 'end zone iso: seven attackers')
+    r.check(p.input_value('#e-sum').startswith('End zone iso right, 7 v 7. Just outside the end zone'), f'summary from the formation: {p.input_value("#e-sum")}')
     r.snap('formation-ez'); r.fold(); r.tab('drill')
+    r.click('#e-forms .fbtn[data-form="vert"]')
+    r.check(p.input_value('#e-sum').startswith('Vertical stack, 7 v 7.'), 'the summary follows the formation')
+    p.fill('#e-sum', 'My own words'); p.keyboard.press('Tab')
     r.click('#e-forms .fbtn[data-form="ho"]')
+    r.check(p.input_value('#e-sum') == 'My own words' and 'Your summary was kept.' in r.text('#hint'), f'own summary kept: {r.text("#hint")}')
     r.click('#e-field button[data-fd="small"]')
     # defense picker: every choice is offered; a zone, then person defense on the attackers on the field
     r.check(r.page.locator('#e-defs .fbtn').count() == 13, 'every defense offered')

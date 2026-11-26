@@ -1,5 +1,6 @@
 /* ---------- formations: starting positions, built for the chosen field and team size ---------- */
 import { fieldOf } from '../data/fields.js';
+import { FORMATIONS } from '../data/formations.js';
 import { r2 } from '../util.js';
 
 /* Offense formations from the tactics overview, for the chosen field and team size (7 or 5).
@@ -61,6 +62,13 @@ export function formation(type, n, fieldKey, withDef, force){
   const players = O.map(p => ({...p, at:[r2(p.at[0]), r2(flip ? W - p.at[1] : p.at[1])]}));
   if (withDef) addPersonDefense(players, 'h1', force);
   return players;
+}
+
+/* The summary a drill starts with when a formation is placed, e.g. "Iso left, 7 v 7. One cutter isolated on the left, …" */
+export function formationSummary(type, n){
+  const f = FORMATIONS.find(x => x.id === type); if (!f) return '';
+  const [s, o] = MIRRORED(type) ? ['right', 'left'] : ['left', 'right'];
+  return `${f.name}, ${n} v ${n}. ${(f.desc || '').replace(/\{s\}/g, s).replace(/\{o\}/g, o)}`.trim();
 }
 
 /* Person defense. Left and right are as the thrower sees it, looking toward the end zone being attacked

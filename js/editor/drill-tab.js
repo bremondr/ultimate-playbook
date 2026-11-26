@@ -11,7 +11,7 @@ import { defenseOf, DEFENSES, FORMATIONS } from '../data/formations.js';
 import { libEntries } from '../library.js';
 import { copyOfEntry } from '../model/drafts.js';
 import { placeDefense, standAt } from '../model/defense.js';
-import { formation } from '../model/formation.js';
+import { formation, formationSummary } from '../model/formation.js';
 import { formationThumb, playersThumb } from '../render/thumb.js';
 import { orient, setField } from '../render/view.js';
 import { $, clamp, clone, r2 } from '../util.js';
@@ -56,27 +56,40 @@ function putDefense(){
   if (defenseOf(defChoice).kind) draft.defense = defChoice; else delete draft.defense;
   return draft.players.filter(p => p.team === 'D').length;
 }
+/* The summary follows the formation and defense while it is empty or still the text they last wrote; once the
+   person has written their own, a new formation or defense leaves it alone and says so. */
+let autoSummary = '', lastForm = null;
+// the formation placed last, and the defense on it
+const summaryNow = () => { const d = defenseOf(defChoice); return formationSummary(lastForm, draft.format) + (d && d.kind ? ` Defense: ${d.name.toLowerCase()}.` : ''); };
+function followSummary(text){
+  const cur = (draft.summary || '').trim();
+  if (cur && cur !== autoSummary.trim()) return false;
+  draft.summary = autoSummary = text; $('#e-sum').value = text;
+  return true;
+}
 function applyFormation(type){
   const before = JSON.stringify(draft), cones = draft.players.filter(p => p.team === 'cone');
   draft.players = [...formation(type, draft.format, draft.field), ...cones];
   draft.disc = 'h1';
   draft.steps.forEach(st => { st.moves = {}; st.throw = null; });
-  putDefense();
+  putDefense(); lastForm = type;
+  const summed = followSummary(summaryNow());
   setSelIds([]); setPendingThrow(null); setEs(-1);
   commit(before); fillStep(); setTool('select'); refitView(); if (zoom === 'fit') layoutField(true); renderEditor(); renderDefs();
   const name = FORMATIONS.find(f => f.id === type).name, d = defenseOf(defChoice);
-  hint(`${name} placed for ${draft.format} v ${draft.format}, ${d.kind ? 'with ' + d.name.toLowerCase() : 'no defense'}. Drag anyone to adjust, then add a step to draw the cuts.${/"moves":\{"|"throw":\{/.test(before) ? ' Runs and throws were cleared. Undo brings them back.' : ''}`);
+  hint(`${name} placed for ${draft.format} v ${draft.format}, ${d.kind ? 'with ' + d.name.toLowerCase() : 'no defense'}. Drag anyone to adjust, then add a step to draw the cuts.${/"moves":\{"|"throw":\{/.test(before) ? ' Runs and throws were cleared. Undo brings them back.' : ''}${summed ? '' : ' Your summary was kept.'}`);
 }
 function applyDefense(id){
   defChoice = id;
   const d = defenseOf(id), os = draft.players.filter(p => p.team === 'O');
   if (!os.length){ renderDefs(); hint(d.kind ? `${d.name} picked. Start from a formation, or add attackers and tap it again.` : 'No defense picked.'); return; }
-  const before = JSON.stringify(draft), n = putDefense();
+  const before = JSON.stringify(draft), n = putDefense(), summed = !lastForm || followSummary(summaryNow());
   setSelIds([]); commit(before); renderEditor(); renderDefs();
-  if (!d.kind) return hint('Defense removed.');
-  hint(d.kind === 'person'
+  const kept = summed ? '' : ' Your summary was kept.';
+  if (!d.kind) return hint('Defense removed.' + kept);
+  hint((d.kind === 'person'
     ? `${d.name}: ${n} defender${n > 1 ? 's' : ''}. ${draft.disc ? 'The mark is on ' + labelOf(draft.disc) + '. ' : ''}${id.startsWith('trap') ? 'One defender leaves their player to help trap on that side; the others follow' : 'Each defender follows'} their player through every step.`
-    : `${d.name}: ${n} defender${n > 1 ? 's' : ''}. ${id.startsWith('clam') ? 'The mark and the handlers\u2019 defenders follow their player; the others' : 'The mark moves with the disc; the others'} hold their spot and watch the disc.`);
+    : `${d.name}: ${n} defender${n > 1 ? 's' : ''}. ${id.startsWith('clam') ? 'The mark and the handlers\u2019 defenders follow their player; the others' : 'The mark moves with the disc; the others'} hold their spot and watch the disc.`) + kept);
 }
 function rescaleDraft(from, to){
   const sx = to.L/from.L, sy = to.W/from.W, sc = q => [r2(clamp(q[0]*sx,0,to.L)), r2(clamp(q[1]*sy,0,to.W))];

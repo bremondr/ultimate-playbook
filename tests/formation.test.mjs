@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FORMATIONS } from '../js/data/formations.js';
 import { FIELDS } from '../js/data/fields.js';
-import { formation } from '../js/model/formation.js';
+import { formation, formationSummary } from '../js/model/formation.js';
 
 const CASES = [7, 5].flatMap(n => ['full', 'small'].map(f => [n, f]));
 
@@ -65,4 +65,14 @@ test('the shapes match the tactics', () => {
   ps = formation('zone-o', 7, 'full');
   const hx = Math.max(...hand(ps).map(p => p.at[0])), c = cut(ps).map(p => p.at[0]).sort((a, b) => a - b);
   assert.equal(hand(ps).length, 3); assert.ok(c[0] > hx && c[1] > hx && c[2] > c[1] + 10);
+});
+
+test('every formation has a summary; left and right versions name their own side', () => {
+  for (const {id, name} of FORMATIONS){
+    const t = formationSummary(id, 7);
+    assert.ok(t.startsWith(`${name}, 7 v 7. `) && t.length > name.length + 20 && t.length <= 400 && !/[{}]/.test(t), id);
+  }
+  assert.match(formationSummary('iso-l', 5), /^Iso left, 5 v 5\. One cutter isolated on the left, the other cutters cleared to the right\./);
+  assert.match(formationSummary('iso-r', 7), /isolated on the right, the other cutters cleared to the left/);
+  assert.equal(formationSummary('nope', 7), '');
 });
