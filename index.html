@@ -335,10 +335,11 @@
             <div class="tb"><span>Field</span><div class="seg full" id="e-field" role="group" aria-label="Field size"><button data-fd="full" title="100 × 37 m">Full</button><button data-fd="small" title="75 × 25 m">Small</button></div></div>
           </div>
           <label class="tb"><span>Start from an existing drill</span><select id="e-from"></select></label>
-          <div class="tb"><span>Start from a formation</span>
+          <!-- each picker folds to the one picked, so it takes less room (drill-tab.js) -->
+          <div class="tb pick" id="e-forms-tb"><button class="foldh" type="button" aria-expanded="true" aria-controls="e-forms"><span>Start from a formation</span><b></b></button>
             <div class="forms" id="e-forms"></div>
           </div>
-          <div class="tb"><span>Defense</span>
+          <div class="tb pick" id="e-defs-tb"><button class="foldh" type="button" aria-expanded="true" aria-controls="e-defs"><span>Defense</span><b></b></button>
             <div class="forms" id="e-defs"></div>
             <span class="small">Tap a defense to put it on the attackers on the field now. A formation comes with the defense picked here. Person defenders follow their player through every step; zone defenders hold their spot. Left and right as the thrower looks downfield: for a right-handed thrower, force right is force forehand.</span>
           </div>

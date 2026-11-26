@@ -301,6 +301,14 @@ def editor_flow(r, base):
     r.click('#e-defs .fbtn[data-def="left"]')
     r.check(r.page.get_attribute('#e-defs .fbtn[data-def="left"]', 'aria-pressed') == 'true', 'force left picked')
     r.check(r.page.locator(dteam).count() == 7 and r.text('#hint').startswith('Force left: 7 defenders'), f'force left: {r.text("#hint")}')
+    # each picker folds to the one picked
+    vis = lambda sel: r.page.locator(sel + ' .fbtn:visible').count()
+    r.click('#e-forms-tb .foldh'); r.click('#e-defs-tb .foldh')
+    r.check(vis('#e-forms') == 1 and r.text('#e-forms-tb .foldh b') == 'Horizontal stack', f'formations folded: {vis("#e-forms")} {r.text("#e-forms-tb .foldh b")}')
+    r.check(vis('#e-defs') == 1 and r.text('#e-defs-tb .foldh b') == 'Force left', f'defenses folded: {vis("#e-defs")}')
+    r.snap('pickers-folded')
+    r.click('#e-forms-tb .foldh'); r.click('#e-defs-tb .foldh')
+    r.check(vis('#e-forms') == 16 and vis('#e-defs') == 13, 'pickers open again')
     r.snap('formation'); r.fold()
     r.click('#zoom button[data-z="fit"]')
     # step 1: a run and a throw
