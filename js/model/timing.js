@@ -1,5 +1,6 @@
 /* ---------- drawn drills: automatic timing ---------- */
 import { fieldOf, FIELDS } from '../data/fields.js';
+import { defenseOf } from '../data/formations.js';
 import { FORCES } from './formation.js';
 import { curveOf, GRIPS, typeOf } from './throws.js';
 import { clamp } from '../util.js';
@@ -60,7 +61,8 @@ export function timeDraft(d){
   if (x0 < 0){ x1 -= x0; x0 = 0; } if (x1 > Fd.L){ x0 -= x1 - Fd.L; x1 = Fd.L; } x0 = Math.max(0, x0);
   const nO = d.players.filter(p => p.team === 'O').length, nD = d.players.filter(p => p.team === 'D').length, nC = d.players.filter(p => p.team === 'cone').length;
   const chips = [['Game', `${format} v ${format}`], ['Players', nD ? `${nO} + ${nD} D` : String(nO)], ['Throws', String(steps.filter(s => s.throw).length)]];
-  if (nD && FORCES[d.force]) chips.splice(1, 0, ['Defense', FORCES[d.force].toLowerCase()]);
+  const dn = defenseOf(d.defense)?.kind ? defenseOf(d.defense).name : FORCES[d.force];
+  if (nD && dn) chips.splice(1, 0, ['Defense', dn.toLowerCase()]);
   if (Fd !== FIELDS.full) chips.push(['Field', Fd.label]);
   if (nC) chips.push(['Cones', String(nC)]);
   const disc = d.disc && byId[d.disc] && byId[d.disc].team === 'O' ? d.disc : null;
