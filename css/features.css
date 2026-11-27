@@ -95,6 +95,11 @@ body.presenting .cap small{font-size:16px;margin-top:4px}
 .planview.narrow .plan-card{width:min(440px,100%)}
 .plan-card h2{font-family:var(--display);font-weight:700;font-size:24px;text-transform:uppercase;margin:0;line-height:1.1}
 .plan-head{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap}
+/* a classic close button in the card's top-right corner (#62); the header keeps clear of it */
+.plan-card{position:relative}
+.plan-head.with-close{padding-right:40px}
+.plan-close{position:absolute;top:8px;right:8px;border:0;background:transparent;font-size:24px;line-height:1;color:var(--muted)}
+.plan-close:hover{background:var(--raised);color:var(--ink)}
 .plan-title{flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:2px}
 .plan-card .k{font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
 .plan-note{white-space:pre-wrap}
