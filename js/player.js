@@ -3,7 +3,7 @@ import { fieldOf } from './data/fields.js';
 import { emit } from './events.js';
 import { builtins, libEntries, saveEntry, team } from './library.js';
 import { compile } from './model/compile.js';
-import { copyOfBuiltin, copyOfEntry, draftOfSaved, draftOfTeam } from './model/drafts.js';
+import { copyOfEntry, draftOfSaved, draftOfTeam } from './model/drafts.js';
 import { bez, discAt, facingDef, hand, pos, sparesAt, stepAt } from './model/motion.js';
 import { throwText } from './model/throws.js';
 import { timeDraft } from './model/timing.js';
@@ -161,7 +161,7 @@ $('#act').addEventListener('click', () => {
   if (current.source === 'preview'){ emit('back-to-editor'); return; }
   if (current.source === 'shared'){ saveShared(); return; }
   const e = libEntries().find(x => x.id === current.id); if (!e) return;
-  emit('edit', e.source === 'team' ? draftOfSaved(e) : e.source === 'repo' ? (teamEdit(e.id) || copyOfEntry(e)) : copyOfBuiltin(e.play));
+  emit('edit', e.source === 'team' ? draftOfSaved(e) : e.source === 'repo' ? (teamEdit(e.id) || copyOfEntry(e)) : copyOfEntry(e));
 });
 // the editor takes the field: stop playing and forget what was on screen
 export function leavePlayback(){ setPlaying(false); current = null; }

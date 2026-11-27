@@ -1,6 +1,6 @@
 /* ---------- the library: built-in drills plus the team's saved drills ---------- */
 import { angelDrill } from './data/angel.js';
-import { PLAYS } from './data/builtins.js';
+import { BUILTIN_TAGS, PLAYS } from './data/builtins.js';
 import { timeDraft } from './model/timing.js';
 import { r2 } from './util.js';
 
@@ -31,7 +31,9 @@ export function dropEntry(id){ team = team.filter(x => x.id !== id); }
 export let repoDrills = [];
 export function setRepoDrills(list){ repoDrills = list; }
 
+/* Every drill in the library. `tags` is each entry's tags: a built-in's from BUILTIN_TAGS, a drawn drill's from its play. */
 export function libEntries(){
-  return [...builtins().map(p => ({id:p.id, source:'builtin', play:p})), ...team.map(e => ({id:e.id, source:'team', play:e.play, raw:e.raw})),
-    ...repoDrills.map(e => ({...e, source:'repo'}))];
+  return [...builtins().map(p => ({id:p.id, source:'builtin', play:p, tags: BUILTIN_TAGS[p.id] || []})),
+    ...team.map(e => ({id:e.id, source:'team', play:e.play, raw:e.raw, tags: e.play.tags || []})),
+    ...repoDrills.map(e => ({...e, source:'repo', tags: e.play.tags || []}))];
 }

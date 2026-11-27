@@ -67,5 +67,5 @@ export function timeDraft(d){
   if (nC) chips.push(['Cones', String(nC)]);
   const disc = d.disc && byId[d.disc] && byId[d.disc].team === 'O' ? d.disc : null;
   return {id:d.id, kind:d.kind, name:d.name || 'Untitled drill', summary:d.summary || '', chips, view:[x0, x1], disc, field: d.field === 'small' ? 'small' : 'full', format,
-    players: d.players.map(p => ({...p})), steps, autoDurs};
+    players: d.players.map(p => ({...p})), steps, autoDurs, ...(d.tags && d.tags.length ? {tags: d.tags.slice()} : {})};
 }

@@ -5,6 +5,7 @@ import { emit } from './events.js';
 import { setTeam, team } from './library.js';
 import { FACES } from './model/facing.js';
 import { MAX_LABEL } from './model/labels.js';
+import { cleanTags } from './model/tags.js';
 import { FORCES } from './model/formation.js';
 import { curveOf, GRIPS, THROW_TYPES, typeOf } from './model/throws.js';
 import { timeDraft } from './model/timing.js';
@@ -21,6 +22,7 @@ export function serialize(d){
     // the formation and defense picked in the Drill tab, written only when there is one, so other drills keep the same files and links
     ...(FORMATIONS.some(f => f.id === d.formation) ? {formation: d.formation} : {}),
     ...(defenseOf(d.defense)?.kind ? {defense: d.defense} : {}),
+    ...(cleanTags(d.tags).length ? {tags: cleanTags(d.tags)} : {}),
     players: d.players.map(p => { const r = {id:p.id, team:p.team};
       if (p.label) r.label = p.label; if (p.at) r.at = [r2(p.at[0]), r2(p.at[1])];
       if (p.follow){ r.follow = p.follow; r.offset = [r2(p.offset[0]), r2(p.offset[1])]; r.lag = p.lag ?? .35; }
@@ -94,6 +96,7 @@ export function readRaw(o){
     field: o.field === 'small' ? 'small' : 'full', format: o.format === 5 ? 5 : 7, force: FORCES[o.force] ? o.force : 'right',
     ...(FORMATIONS.some(f => f.id === o.formation) ? {formation: o.formation} : {}),
     ...(defenseOf(o.defense)?.kind ? {defense: o.defense} : {}),
+    ...(cleanTags(o.tags).length ? {tags: cleanTags(o.tags)} : {}),
     disc: oIds.has(o.disc) ? o.disc : null, players, steps, createdAt: num(o.createdAt) ? o.createdAt : 0};
 }
 // a library entry from a stored drill
