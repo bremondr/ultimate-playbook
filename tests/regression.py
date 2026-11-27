@@ -479,6 +479,13 @@ def plans_flow(r, base):
     r.click('#opts'); r.click('#plan-add-open'); p.click('#plan-add-list .item >> nth=0')
     r.wait("document.querySelector('#pkind').textContent.startsWith('Added')")
     r.click('#menu'); r.check('3 items · 31 min' in r.text('#nav .plans .item'), f'added from the player: {r.text("#nav .plans .item")}')
+    # the plan bar's Next (issue #61): straight to the next drill of the practice, and none after the last item
+    p.click('#nav .plans .item'); r.click('#plan-next'); p.click('#plan-now .primary'); r.wait("document.querySelector('#pname').textContent === 'Angel drill'")
+    r.check(r.visible('#plan-bar-next') and r.text('#plan-bar-next') == 'Next: Angel drill: fake & cut back', f'Next names the next item: {r.text("#plan-bar-next")}')
+    r.snap('plan-bar-next')
+    r.click('#plan-bar-next'); r.wait("document.querySelector('#pname').textContent === 'Angel drill: fake & cut back'")
+    r.check('3 of 3' in r.text('#plan-bar') and not r.visible('#plan-bar-next') and not r.visible('#plan-run'), 'Next opens the next drill; the last item has no Next')
+    r.click('#plan-bar-end')
 
 
 def plan_link_flow(r, base):
@@ -501,6 +508,7 @@ def plan_link_flow(r, base):
     link = p.input_value('#plan-share-link')
     r.check(link.startswith('https://bremondr.github.io/ultimate-playbook/#plan=') and r.visible('#plan-share-qr'), 'a plan link with its QR code')
     r.snap('plan-share')
+    r.click('#plan-share-close'); r.check(not r.visible('#plan-share') and r.visible('#plan-run'), 'the × in the corner closes the share dialog')
     # another device: nothing saved, open the link here
     p.evaluate('localStorage.clear()'); p.goto('about:blank'); p.goto(base + '#' + link.split('#', 1)[1])
     r.wait("!document.querySelector('#plan-run').hidden")
@@ -508,7 +516,9 @@ def plan_link_flow(r, base):
     r.click('#plan-next'); r.check(r.text('#plan-now h3') == 'My cuts', f'its drawn drill came along: {r.text("#plan-now h3")}')
     p.click('#plan-now .primary'); r.wait("document.querySelector('#pname').textContent === 'My cuts'")
     r.check(r.visible('#plan-bar') and 'from a shared plan' in r.text('#pkind'), f'the drawn drill plays, with the plan bar: {r.text("#pkind")}')
-    r.click('#plan-bar-back'); r.click('#plan-run-save')
+    r.check(r.text('#plan-bar-next') == 'Next: Water break', f'Next names a block too: {r.text("#plan-bar-next")}')
+    r.click('#plan-bar-next'); r.check(r.visible('#plan-run') and r.text('#plan-now h3') == 'Water break', 'Next to a block opens the plan at it')
+    r.click('#plan-run-save')
     r.wait("document.querySelector('#plan-run-meta').textContent.includes('saved to your plans')")
     r.check(not r.visible('#plan-run-save') and r.visible('#plan-run-edit'), 'saved: now it can be edited')
     p.keyboard.press('Escape'); r.click('#menu')

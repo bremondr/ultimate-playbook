@@ -130,7 +130,7 @@
   <footer class="vfoot">
     <!-- feature: practice plans (js/features/plans.js): while a plan's drill is on screen -->
     <div class="planbar" id="plan-bar" hidden><span class="planbar-what">Plan: <b id="plan-bar-name"></b> · <span id="plan-bar-pos"></span></span>
-      <button class="pill" id="plan-bar-back" type="button">Back to plan</button><button class="ibtn" id="plan-bar-end" type="button" title="Leave the plan" aria-label="Leave the plan">×</button></div>
+      <button class="pill planbar-next" id="plan-bar-next" type="button" hidden>Next: <b id="plan-bar-next-name"></b></button><button class="pill" id="plan-bar-back" type="button">Back to plan</button><button class="ibtn" id="plan-bar-end" type="button" title="Leave the plan" aria-label="Leave the plan">×</button></div>
     <div class="cap">
       <div class="capline"><b id="cap-n">Step 1</b><span id="cap-title"></span></div>
       <p id="cap-note"></p>
@@ -266,10 +266,10 @@
 </div>
 <div class="planview narrow" id="plan-share" role="dialog" aria-modal="true" aria-labelledby="plan-share-h" hidden>
   <div class="plan-card">
-    <h2 id="plan-share-h">Share this plan</h2>
+    <div class="plan-dlghead"><h2 id="plan-share-h">Share this plan</h2><button class="ibtn" id="plan-share-close" type="button" title="Close" aria-label="Close">×</button></div>
     <p class="small">The whole plan is in the link, with copies of its drawn drills, so it works without any account or server. Whoever opens it can step through it, print it and save their own copy.</p>
     <input id="plan-share-link" readonly aria-label="Link to this plan" class="sharelink">
-    <div class="btnrow"><button class="primary" id="plan-share-copy" type="button">Copy link</button><button class="ghost" id="plan-share-native" type="button" hidden>Share…</button><button class="ghost" id="plan-share-close" type="button">Close</button></div>
+    <div class="btnrow"><button class="primary" id="plan-share-copy" type="button">Copy link</button><button class="ghost" id="plan-share-native" type="button" hidden>Share…</button></div>
     <p class="small" id="plan-share-status" role="status"></p>
     <div class="qrbox plan-qr" id="plan-share-qr" hidden></div>
     <p class="small" id="plan-share-qr-note" hidden>This plan is too long for a QR code. Send the link instead.</p>

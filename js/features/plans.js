@@ -140,8 +140,20 @@ function openDrill(id){
   const e = runPlan(), n = e ? e.plan.items.length : 0;
   $('#plan-bar-name').textContent = e ? e.plan.name : '';
   $('#plan-bar-pos').textContent = `${run.index + 1} of ${n}`;
+  // the next part of the practice, one tap away (#61)
+  const next = e && resolveItems(e.plan, runEntries())[run.index + 1];
+  $('#plan-bar-next').hidden = !next;
+  if (next) $('#plan-bar-next-name').textContent = itemTitle(next.item, next.entry);
   $('#plan-bar').hidden = false;
 }
+// a drill goes straight to the player; a block, or a drill that's gone, opens the plan at it
+function nextInPlan(){
+  const e = runPlan(); if (!e) return;
+  const next = resolveItems(e.plan, runEntries())[run.index + 1]; if (!next) return;
+  run.index++;
+  if (next.entry) openDrill(next.entry.id); else openRun(run.id, run.index, run.shared);
+}
+$('#plan-bar-next').addEventListener('click', nextInPlan);
 $('#plan-bar-back').addEventListener('click', () => { if (run) openRun(run.id, run.index, run.shared); });
 $('#plan-bar-end').addEventListener('click', endPlan);
 
