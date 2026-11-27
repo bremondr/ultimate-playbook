@@ -153,6 +153,8 @@ function renderLines(sources = store.sources()){
 /* ---------- in the share popover ---------- */
 const say = t => { $('#team-share-status').textContent = t; };
 const writable = () => store.sources().filter(s => s.canWrite);
+// Publish to team is offered for teams the person may be in: not the demo team, unless this device can publish there
+const offersPublish = s => !!s.canWrite || s.repo.toLowerCase() !== DEMO_REPO.toLowerCase();
 let removeArmed = null;
 function armRemove(on){
   clearTimeout(removeArmed); removeArmed = null;
@@ -166,8 +168,8 @@ function renderShare(){
   if (box.hidden) return;
   // a saved drill: Publish to team
   const mine = current.source === 'team' && team.find(x => x.id === current.id), can = writable();
-  $('#team-publish').hidden = !mine;
-  if (mine){
+  $('#team-publish').hidden = !mine || !sources.some(offersPublish);
+  if (!$('#team-publish').hidden){
     const published = can.filter(s => s.items.some(i => i.id === mine.id));
     $('#team-publish-what').textContent = !can.length
       ? 'To publish this drill for a team, add a token for the team in Teams and tokens.'
@@ -256,9 +258,10 @@ function plansChanged(sources){
   const key = list => JSON.stringify(list.map(e => [e.id, e.sha, e.canWrite]));
   if (key(next) !== key(repoPlans)){ setRepoPlans(next); emit('plans-changed'); }
 }
-/** The followed teams, [{repo, label, canWrite}]: canWrite when this device has a token that can publish (the drills
-    store knows; the plans use the same token). */
-export const teamsFollowed = () => store ? store.sources().map(s => ({repo: s.repo, label: teamLabel(s.repo), canWrite: !!s.canWrite})) : [];
+/** The followed teams to offer publishing to, [{repo, label, canWrite}]: canWrite when this device has a token that can
+    publish (the drills store knows; the plans use the same token). The demo team only with such a token: everyone
+    follows it, and only its owner can publish there. */
+export const teamsFollowed = () => store ? store.sources().filter(offersPublish).map(s => ({repo: s.repo, label: teamLabel(s.repo), canWrite: !!s.canWrite})) : [];
 export const teamsToPublish = () => teamsFollowed().filter(t => t.canWrite);
 /** Teams and tokens, open at a team's token form. */
 export function openTeamToken(repo){ if (panel) panel.open({token: repo}); }
@@ -308,27 +311,15 @@ async function fakeGitHub(){
         {kind: 'drill', drill: 'angel-cutback', name: 'Angel drill: fake & cut back', minutes: 15, note: ''}, {kind: 'block', title: 'Scrimmage', minutes: 30, note: ''}]})
   }});
   await fake.addRepo(shortName('tuesday'), {files: {'drills/tuesday-angel.json': file('tuesday-angel', {...angelDrill('basic'), name: 'Tuesday angel'})}});
-  await fake.addRepo(DEMO_REPO, {files: await withIndex({
+  await fake.addRepo(DEMO_REPO, {index: true, files: {
     'drills/demo-angel.json': file('demo-angel', {...angelDrill('basic'), name: 'Demo: angel drill'}),
     'drills/demo-angel-break.json': file('demo-angel-break', {...angelDrill('break'), name: 'Demo: angel with a fake'}),
     'plans/demo-practice.json': writeTeamPlan({id: 'demo-practice', name: 'Demo practice', note: '', createdAt: Date.now() - 864e5, updatedAt: Date.now() - 864e5,
       items: [{kind: 'block', title: 'Warm-up', minutes: 15, note: ''}, {kind: 'drill', drill: 'here:demo-angel', name: 'Demo: angel drill', minutes: 20, note: ''}]})
-  })});
+  }});
   for (const team of ['sunset', 'tuesday']) fake.addToken(FAKE_TOKEN, shortName(team), 'write');
   window.PLAYBOOK_FAKE_GITHUB = fake;   // for the regression check and for trying conflicts by hand (fake.edit)
   return fake;
-}
-
-// git-store-index.json for a fake repo, as the index workflow writes it in a real one: each folder's *.json files
-// with their git blob sha (the text is written the way the fake writes a file)
-async function withIndex(files){
-  const {gitBlobSha} = await import('../vendor/git-store-kit/github.js');
-  const folders = {};
-  for (const [path, json] of Object.entries(files)){
-    const [folder, name] = path.split('/'), text = JSON.stringify(json, null, 2) + '\n';
-    (folders[folder] ||= []).push({name, path, sha: await gitBlobSha(text), size: new TextEncoder().encode(text).length});
-  }
-  return {...files, 'git-store-index.json': {type: 'git-store-index', version: 1, generatedAt: new Date().toISOString(), commit: 'fake', folders}};
 }
 
 /* ---------- wiring ---------- */

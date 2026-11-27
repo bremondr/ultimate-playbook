@@ -3,7 +3,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { commitMessage, DEMO_REPO, FILE_TYPE, linkName, planStoreOptions, readTeamDrill, shortName, teamLabel, teamStoreOptions, writeTeamDrill, writeTeamPlan } from '../js/features/team-format.js';
-import { gitBlobSha } from '../js/vendor/git-store-kit/github.js';
 import { createGitStore, GitStoreConflict } from '../js/vendor/git-store-kit/store.js';
 import { createFakeGitHub } from '../js/vendor/git-store-kit/fake-github.js';
 import { memoryCache } from '../js/vendor/git-store-kit/cache.js';
@@ -191,32 +190,22 @@ test('“Restore from a file” takes a team file as a single drill', () => {
 });
 
 /* ---------- the demo team, followed by default and read from its index (#68, git-store-kit 1.2.0) ---------- */
-// the demo repo's files with git-store-index.json, as the index workflow writes it (the fake writes JSON this way)
-async function demoFiles(){
-  const files = {
-    'drills/demo-angel.json': writeTeamDrill(drill('demo-angel', 'Demo angel')),
-    'drills/README.md': 'Demo drills',
-    'plans/demo-practice.json': writeTeamPlan({id: 'demo-practice', name: 'Demo practice', note: '', createdAt: 1, updatedAt: 2,
-      items: [{kind: 'drill', drill: 'here:demo-angel', name: 'Demo angel', minutes: 20, note: ''}]})
-  };
-  const folders = {};
-  for (const [path, json] of Object.entries(files)) if (path.endsWith('.json')){
-    const [folder, name] = path.split('/'), text = JSON.stringify(json, null, 2) + '\n';
-    (folders[folder] ||= []).push({name, path, sha: await gitBlobSha(text), size: text.length});
-  }
-  return {...files, 'git-store-index.json': {type: 'git-store-index', version: 1, generatedAt: '2026-11-27T10:00:00Z', commit: 'abc', folders}};
-}
+// the demo repo's files (the fake writes git-store-index.json for them, as the index workflow does)
+const demoFiles = () => ({
+  'drills/demo-angel.json': writeTeamDrill(drill('demo-angel', 'Demo angel')),
+  'drills/README.md': 'Demo drills',
+  'plans/demo-practice.json': writeTeamPlan({id: 'demo-practice', name: 'Demo practice', note: '', createdAt: 1, updatedAt: 2,
+    items: [{kind: 'drill', drill: 'here:demo-angel', name: 'Demo angel', minutes: 20, note: ''}]})
+});
 async function demoSetup({index = true} = {}){
   const fake = createFakeGitHub(), storage = memoryStorage(), cache = memoryCache();
-  const files = await demoFiles();
-  if (!index) delete files['git-store-index.json'];
-  await fake.addRepo(DEMO_REPO, {files});
+  await fake.addRepo(DEMO_REPO, {index, files: demoFiles()});
   // as team.js makes them: both stores get the demo team as a default, and share the followed teams
   const make = () => ({
     drills: createGitStore(teamStoreOptions({defaults: [DEMO_REPO], fetch: fake.fetch, cache, storage})),
     plans: createGitStore(planStoreOptions({defaults: [DEMO_REPO], fetch: fake.fetch, cache, storage}))
   });
-  const apiCalls = () => fake.log.filter(e => e.url.startsWith('https://api.github.com/')).length;
+  const apiCalls = () => fake.requests.api;
   return {fake, make, apiCalls};
 }
 
@@ -233,6 +222,7 @@ test('a first visit follows the demo team, and loads its drills and plan from th
   assert.deepEqual(plans.following(), [DEMO_REPO]);
   const [[d], [p]] = await Promise.all([drills.load(), plans.load()]);
   assert.equal(d.error, null);
+  assert.equal(d.fromIndex, true);
   assert.deepEqual(d.items.map(i => i.id), ['demo-angel']);
   assert.deepEqual(p.items.map(i => i.id), ['demo-practice']);
   assert.equal(apiCalls(), 0, 'no api.github.com requests without a token when the repo has an index');

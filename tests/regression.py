@@ -545,7 +545,7 @@ EDIT_ON_GITHUB = """async repo => { const fake = window.PLAYBOOK_FAKE_GITHUB, pa
 
 SUNSET_DRILLS = "[...document.querySelectorAll('#nav .group:not(.plans) .tag.team')].filter(t => t.textContent === 'Sunset').length"
 DEMO = 'bremondr/ultimate-playbook-demo'
-API_CALLS = "() => window.PLAYBOOK_FAKE_GITHUB.log.filter(e => e.url.startsWith('https://api.github.com/')).length"
+API_CALLS = '() => window.PLAYBOOK_FAKE_GITHUB.requests.api'
 
 
 def demo_flow(r, base):
@@ -557,6 +557,11 @@ def demo_flow(r, base):
     r.wait("[...document.querySelectorAll('#nav .plans .item')].some(i => i.textContent.includes('Demo practice'))")
     r.check(p.evaluate(API_CALLS) == 0, f'no API requests: the demo team is read from its index ({p.evaluate(API_CALLS)})')
     r.click('#menu'); r.snap('demo')
+    # anyone follows the demo team, so a saved drill doesn't offer Publish to team for it
+    p.evaluate(MY_DRILL, SUNSET); p.reload(); r.wait("document.querySelector('#team-lines').textContent.includes('Demo: 2 drills')")
+    p.evaluate("location.hash = 'c1mine'"); r.wait("document.querySelector('#pname').textContent === 'Hex cuts'")
+    r.click('#share'); r.check(not r.visible('#team-publish'), 'no Publish to team with only the demo team')
+    r.click('#share'); r.click('#menu')
     # removed in Teams and tokens: gone from the drills and the plans, and still gone after a reload
     r.click('#teams-open')
     row = f'.gs-source[data-repo="{DEMO}"]'
