@@ -3,7 +3,7 @@
 
 Serves the folder with `python3 -m http.server`, opens it in headless Chrome (Python Playwright) and checks:
   1. no page errors and no console errors;
-  2. the main player and editor flows (with drawing throws, tags, arrows per step, new discs, and Send feedback), on an iPad-sized and a phone-sized screen;
+  2. the main player and editor flows (with drawing throws, tags, practice plans, arrows per step, new discs, and Send feedback), on an iPad-sized and a phone-sized screen;
   3. the saved-drills path through a mocked `window.claude` team store (as when the page runs as a Claude artifact),
      and team repos (js/features/team.js) against the GitHub in memory that ?fakegithub plugs in: following a team
      from its link, its drills in the list, a token, Publish to team, a conflict, history and Remove from team;
@@ -450,6 +450,36 @@ def tags_flow(r, base):
     p.click('#nav-tags .link'); r.check(p.locator('#nav .item').count() > 1, 'Clear shows every drill again')
 
 
+def plans_flow(r, base):
+    """Practice plans (issue #51): make one, keep it, step through it into a drill and back, add from the player, print."""
+    p = r.page
+    p.goto(base); r.wait("document.querySelector('#pname').textContent !== '—'")
+    r.click('#menu'); r.click('#plan-new'); r.check(r.visible('#plan-edit'), 'plan editor open')
+    p.fill('#plan-name', 'Tuesday practice'); p.press('#plan-name', 'Tab')
+    r.click('#plan-add-block'); p.click('#plan-block-quick button:text-is("Warm-up")')
+    r.click('#plan-add-drill'); p.fill('#plan-pick-search', 'angel'); p.click('#plan-pick-list .item >> nth=0')
+    p.click('.plan-row >> nth=1 >> .plan-mins-ed button >> nth=1')
+    r.check(r.text('#plan-edit-total') == '2 items · 21 min', f'items and total: {r.text("#plan-edit-total")}')
+    r.snap('plan-editor')
+    r.click('#plan-save'); r.wait("document.querySelector('#plan-status').textContent.startsWith('Saved')")
+    r.click('#plan-edit-close'); r.check(not r.visible('#plan-edit'), 'editor closed')
+    p.reload(); r.wait("document.querySelector('#pname').textContent !== '—'")
+    r.click('#menu'); r.check(p.locator('#nav .plans .item').count() == 1, 'the plan is kept in this browser')
+    p.click('#nav .plans .item'); r.check(r.visible('#plan-run') and r.text('#plan-now h3') == 'Warm-up', 'stepping through starts at the first item')
+    r.click('#plan-next'); r.check(r.text('#plan-now h3') == 'Angel drill' and r.text('#plan-now .k').startswith('2 of 2 · 0:10–0:21'), f'next item: {r.text("#plan-now .k")}')
+    r.snap('plan-run')
+    p.click('#plan-now .primary'); r.wait("document.querySelector('#pname').textContent === 'Angel drill'")
+    r.check(r.visible('#plan-bar') and 'Tuesday practice · 2 of 2' in r.text('#plan-bar'), 'the drill opens with the plan bar')
+    r.click('#plan-bar-back'); r.check(r.visible('#plan-run') and r.text('#plan-now h3') == 'Angel drill', 'back to the same item')
+    p.evaluate("window.print = () => { window.__printed = document.querySelector('#plan-print').textContent; }")
+    r.click('#plan-run-print'); r.check('0:10' in (p.evaluate('window.__printed') or '') and 'Angel drill' in p.evaluate('window.__printed'), 'print lists the items with times')
+    p.keyboard.press('Escape'); r.check(not r.visible('#plan-run'), 'Escape closes the plan')
+    p.goto(base + '#go-to'); r.wait("document.querySelector('#pname').textContent === 'Go-to drill'")
+    r.click('#opts'); r.click('#plan-add-open'); p.click('#plan-add-list .item >> nth=0')
+    r.wait("document.querySelector('#pkind').textContent.startsWith('Added')")
+    r.click('#menu'); r.check('3 items · 31 min' in r.text('#nav .plans .item'), f'added from the player: {r.text("#nav .plans .item")}')
+
+
 def team_flow(r, base, can_write):
     p = r.page
     p.goto(base); r.wait("document.querySelector('#sync').textContent.startsWith('No team drills')")
@@ -556,7 +586,7 @@ def main():
                 return Run(page, name, trace, args.shots)
 
             for vp, size in VIEWPORTS.items():
-                for flow in (player_flow, editor_flow, throw_flow, arrows_flow, new_disc_flow, tags_flow):
+                for flow in (player_flow, editor_flow, throw_flow, arrows_flow, new_disc_flow, tags_flow, plans_flow):
                     r = page_for(f'{flow.__name__[:-5]}-{vp}', size)
                     try: flow(r, base)
                     except Exception as e: r.failures.append(f'{r.name}: stopped: {e}')

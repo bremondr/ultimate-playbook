@@ -32,11 +32,17 @@ function renderTagFilter(all){
   }
 }
 
+/* Integration point (practice plans, js/features/plans.js): sections drawn above the plays and drills. Each is a
+   function (search text) → an element, or null for nothing. */
+const sections = [];
+export function addNavSection(fn){ sections.push(fn); }
+
 /* the drill list, filtered by the search box (all words, any order; case and accents don't matter) */
 export function buildNav(){
   const nav = $('#nav'); nav.replaceChildren();
   const query = $('#nav-search').value, all = libEntries();
   renderTagFilter(all);
+  sections.forEach(fn => { const el = fn(query); if (el) nav.appendChild(el); });
   const entries = all.filter(e => matchesQuery(withTags(e), query) && matchesTags(withTags(e), picked));
   if (!entries.length && (query.trim() || picked.length)){
     const p = document.createElement('p'); p.className = 'small navnone'; p.textContent = 'No drills match. ';

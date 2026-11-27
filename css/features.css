@@ -1,4 +1,4 @@
-/* Self-contained features: QR code for share links, drill backup, presentation mode, send feedback, team repos. */
+/* Self-contained features: QR code for share links, drill backup, presentation mode, send feedback, practice plans. */
 
 /* ---------- QR code (js/features/qr.js) ---------- */
 /* Always dark on white, also in dark mode: scanners expect it. */
@@ -86,3 +86,83 @@ body.presenting .cap small{font-size:16px;margin-top:4px}
 /* the panel (git-store-kit) in the app's colours and fonts */
 :root{--gs-surface:var(--surface);--gs-ink:var(--ink);--gs-muted:var(--muted);--gs-rule:var(--rule);--gs-accent:var(--accent);
   --gs-on-accent:var(--on-accent);--gs-warn:var(--warn);--gs-danger:var(--danger);--gs-font:var(--body);--gs-display:var(--display);--gs-z:50}
+
+/* ---------- practice plans (js/features/plans.js, plan-editor.js) ---------- */
+.planview{position:fixed;inset:0;z-index:42;display:grid;place-items:center;background:rgba(10,20,12,.45);
+  padding:max(12px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
+.planview[hidden]{display:none}
+.plan-card{display:flex;flex-direction:column;gap:12px;width:min(760px,100%);max-height:100%;overflow-y:auto;background:var(--surface);border:1px solid var(--rule);border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.3);padding:16px 18px 20px}
+.planview.narrow .plan-card{width:min(440px,100%)}
+.plan-card h2{font-family:var(--display);font-weight:700;font-size:24px;text-transform:uppercase;margin:0;line-height:1.1}
+.plan-head{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap}
+.plan-title{flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:2px}
+.plan-card .k{font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.plan-note{white-space:pre-wrap}
+.plan-note[hidden]{display:none}
+.plan-now{display:flex;flex-direction:column;gap:6px;align-items:flex-start;background:var(--raised);border:1px solid var(--rule);border-radius:12px;padding:16px}
+.plan-now h3{font-family:var(--display);font-weight:700;font-size:32px;line-height:1.05;text-transform:uppercase;margin:0}
+.plan-now .plan-mins{font-size:18px;font-weight:600;margin:0}
+.plan-now .plan-itemnote{font-size:16px;margin:0;white-space:pre-wrap}
+.plan-now .primary{margin-top:6px;min-height:44px}
+.warnline{color:var(--warn)}
+.plan-nav{display:flex;align-items:center;gap:10px}
+.plan-nav span{flex:1;text-align:center}
+.plan-nav button{min-height:44px;min-width:96px}
+.plan-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.plan-list .item{display:grid;grid-template-columns:3.2em minmax(0,1fr);column-gap:8px}
+.plan-list .item .plan-at{grid-row:span 2;font-family:var(--mono);font-size:13px;color:var(--muted);align-self:center}
+.plan-list .item[aria-current="true"]{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+.item.missing b{color:var(--muted);text-decoration:line-through}
+/* the editor */
+.plan-card > *{flex-shrink:0}   /* a full-height card on phones must scroll, not squeeze its parts */
+.plan-name{width:100%;font-family:var(--display);font-weight:700;font-size:22px;text-transform:uppercase;border:1px solid var(--rule);border-radius:10px;background:var(--raised);color:var(--ink);padding:6px 10px;min-height:44px}
+#plan-note{width:100%;border:1px solid var(--rule);border-radius:10px;background:var(--raised);color:var(--ink);padding:8px 10px;font:inherit;resize:vertical}
+.plan-items{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.plan-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:8px;align-items:center;background:var(--raised);border:1px solid var(--rule);border-radius:12px;padding:8px}
+.plan-row.dragging{box-shadow:0 8px 24px rgba(0,0,0,.2);border-color:var(--accent)}
+.plan-row.missing{border-style:dashed}
+.plan-grip{border:0;background:none;color:var(--muted);font-size:20px;cursor:grab;touch-action:none;min-width:32px;min-height:44px}
+.plan-main{display:flex;flex-direction:column;gap:3px;min-width:0}
+.plan-main b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plan-main input{width:100%;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--ink);font:inherit;padding:4px 6px}
+.plan-main input:hover,.plan-main input:focus{border-color:var(--rule);background:var(--surface)}
+.plan-main .plan-blocktitle{font-weight:600}
+.plan-main .plan-itemnote{font-size:13px;color:var(--muted)}
+.plan-mins-ed{display:flex;align-items:center;gap:4px}
+.plan-mins-ed .ghost{min-width:36px;min-height:36px;padding:0}
+.plan-mins-ed input{width:3.4em;text-align:center;border:1px solid var(--rule);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;min-height:36px}
+.plan-tools{display:flex;gap:2px}
+.plan-tools .ibtn{min-width:36px;height:36px}
+.plan-picker,.plan-blocks{display:flex;flex-direction:column;gap:8px;border:1px solid var(--rule);border-radius:12px;padding:10px;background:var(--raised)}
+.plan-picker[hidden],.plan-blocks[hidden]{display:none}
+#plan-pick-search,#plan-block-title{min-height:40px;padding:8px 12px;border:1px solid var(--rule);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit}
+#plan-block-title{flex:1}
+#plan-pick-list{max-height:min(40vh,320px);overflow-y:auto}
+@media (max-width:640px){
+  .planview{padding:0}
+  .plan-card{width:100%;height:100%;border-radius:0;border:0}
+  .plan-row{grid-template-columns:auto minmax(0,1fr);grid-template-areas:"grip main" "grip mins" "grip tools"}
+  .plan-grip{grid-area:grip}
+  .plan-main{grid-area:main}
+  .plan-mins-ed{grid-area:mins}
+  .plan-tools{grid-area:tools;justify-content:flex-end}
+  .plan-now h3{font-size:26px}
+}
+/* the bar under the field while a plan's drill is on screen */
+.planbar{display:flex;align-items:center;gap:8px;background:var(--accent-soft);border-radius:10px;padding:4px 4px 4px 12px;font-size:14px}
+.planbar[hidden]{display:none}
+.planbar-what{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* printing a plan: only the plan */
+.planprint{display:none}
+@media print{
+  body.printing-plan > *:not(#plan-print){display:none !important}
+  body.printing-plan #plan-print{display:block;color:#000;background:#fff;font-family:var(--body);font-size:11pt}
+  #plan-print h1{font-family:var(--display);font-size:22pt;text-transform:uppercase;margin:0 0 2pt}
+  #plan-print .pp-meta{color:#444;margin:0 0 8pt}
+  #plan-print .pp-items{list-style:none;padding:0;margin:0}
+  #plan-print .pp-items li{display:grid;grid-template-columns:3.5em 4.5em 1fr;gap:6pt;padding:6pt 0;border-top:1px solid #bbb;break-inside:avoid}
+  #plan-print .pp-at{font-family:var(--mono)}
+  #plan-print p{margin:2pt 0}
+  #plan-print .pp-note{font-style:italic}
+  #plan-print .pp-steps{color:#444;font-size:9.5pt}
+}

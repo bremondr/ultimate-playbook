@@ -97,6 +97,8 @@
     <label class="check"><input type="checkbox" id="t-arrows" checked> Show arrows</label>
     <label class="check" id="l-def"><input type="checkbox" id="t-def" checked> Show defense</label>
     <p class="small keys"><kbd>Space</kbd> play · <kbd>←</kbd> <kbd>→</kbd> step</p>
+    <!-- feature: practice plans (js/features/plans.js) -->
+    <button class="link" id="plan-add-open" type="button">Add this drill to a practice plan…</button>
     <!-- feature: send feedback (js/features/feedback.js) -->
     <button class="link" id="opts-feedback" type="button">Send feedback about what’s on screen</button>
     <!-- feature: team repos (js/features/team.js) -->
@@ -126,6 +128,9 @@
   </main>
 
   <footer class="vfoot">
+    <!-- feature: practice plans (js/features/plans.js): while a plan's drill is on screen -->
+    <div class="planbar" id="plan-bar" hidden><span class="planbar-what">Plan: <b id="plan-bar-name"></b> · <span id="plan-bar-pos"></span></span>
+      <button class="pill" id="plan-bar-back" type="button">Back to plan</button><button class="ibtn" id="plan-bar-end" type="button" title="Leave the plan" aria-label="Leave the plan">×</button></div>
     <div class="cap">
       <div class="capline"><b id="cap-n">Step 1</b><span id="cap-title"></span></div>
       <p id="cap-note"></p>
@@ -158,6 +163,8 @@
       <button class="ibtn" id="drawer-close" type="button" title="Close" aria-label="Close list"><svg viewBox="0 0 24 24"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 12l6.3-7.7z"/></svg></button>
     </div>
     <button class="newbtn" id="new" type="button" aria-expanded="false" aria-controls="new-pick"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>Draw a new drill</button>
+    <!-- feature: practice plans (js/features/plans.js) -->
+    <button class="newbtn" id="plan-new" type="button"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 5h16v2H4zm0 6h10v2H4zm0 6h10v2H4zm14-4h2v3h3v2h-3v3h-2v-3h-3v-2h3z"/></svg>New practice plan</button>
     <div class="newpick" id="new-pick" hidden>
       <button class="ghost" id="new-blank" type="button">Start from a blank field</button>
       <span class="small">Or start from a copy of</span>
@@ -197,6 +204,62 @@
     <button class="primary" id="qr-big-close" type="button">Close</button>
   </div>
 </div>
+
+<!-- feature: practice plans (js/features/plans.js, plan-editor.js): stepping through, editing, adding a drill, printing -->
+<div class="planview" id="plan-run" role="dialog" aria-modal="true" aria-labelledby="plan-run-name" hidden>
+  <div class="plan-card">
+    <header class="plan-head">
+      <div class="plan-title"><span class="k">Practice plan</span><h2 id="plan-run-name"></h2><p class="small" id="plan-run-meta"></p></div>
+      <button class="ghost" id="plan-run-edit" type="button">Edit</button>
+      <button class="ghost" id="plan-run-print" type="button">Print</button>
+      <button class="ibtn" id="plan-run-close" type="button" aria-label="Close the plan">×</button>
+    </header>
+    <p class="small plan-note" id="plan-run-note"></p>
+    <section class="plan-now" id="plan-now" aria-live="polite"></section>
+    <div class="plan-nav">
+      <button class="ghost" id="plan-back" type="button">← Back</button>
+      <span class="small" id="plan-pos"></span>
+      <button class="primary" id="plan-next" type="button">Next →</button>
+    </div>
+    <ol class="plan-list" id="plan-list"></ol>
+  </div>
+</div>
+<div class="planview" id="plan-edit" role="dialog" aria-modal="true" aria-labelledby="plan-edit-h" hidden>
+  <div class="plan-card">
+    <header class="plan-head">
+      <div class="plan-title"><span class="k" id="plan-edit-h">Practice plan</span><span class="small" id="plan-edit-total"></span></div>
+      <button class="ghost" id="plan-undo" type="button" disabled>Undo</button>
+      <button class="primary" id="plan-save" type="button">Save</button>
+      <button class="ghost" id="plan-edit-close" type="button">Close</button>
+    </header>
+    <input id="plan-name" class="plan-name" maxlength="80" autocomplete="off" aria-label="Plan name" placeholder="Name this plan">
+    <textarea id="plan-note" rows="2" maxlength="400" aria-label="Note" placeholder="Theme of the session, what to focus on (optional)"></textarea>
+    <ol class="plan-items" id="plan-items"></ol>
+    <p class="small" id="plan-empty">No items yet. Add drills from the library, and blocks for warm-up, water breaks or a scrimmage.</p>
+    <div class="btnrow"><button class="ghost" id="plan-add-drill" type="button" aria-expanded="false">+ Add drill</button><button class="ghost" id="plan-add-block" type="button" aria-expanded="false">+ Add block</button></div>
+    <div class="plan-picker" id="plan-picker" hidden>
+      <input type="search" id="plan-pick-search" placeholder="Search drills" aria-label="Search drills" autocomplete="off">
+      <div class="tagfilter" id="plan-pick-tags"></div>
+      <ul class="list" id="plan-pick-list"></ul>
+    </div>
+    <div class="plan-blocks" id="plan-blocks" hidden>
+      <div class="btnrow" id="plan-block-quick"></div>
+      <div class="btnrow"><input id="plan-block-title" maxlength="60" placeholder="Or your own: Hydrate, Huddle…" aria-label="Block title"><button class="ghost" id="plan-block-add" type="button">Add</button></div>
+    </div>
+    <p class="small" id="plan-status" role="status"></p>
+    <button class="link danger" id="plan-delete" type="button" hidden>Delete this plan</button>
+  </div>
+</div>
+<div class="planview narrow" id="plan-add" role="dialog" aria-modal="true" aria-labelledby="plan-add-h" hidden>
+  <div class="plan-card">
+    <h2 id="plan-add-h">Add to a practice plan</h2>
+    <p class="small" id="plan-add-what"></p>
+    <ul class="list" id="plan-add-list"></ul>
+    <div class="btnrow"><button class="ghost" id="plan-add-new" type="button">New plan with this drill</button><button class="ghost" id="plan-add-close" type="button">Cancel</button></div>
+    <p class="small" id="plan-add-status" role="status"></p>
+  </div>
+</div>
+<section class="planprint" id="plan-print" aria-hidden="true"></section>
 
 <div class="studio" id="studio" hidden>
   <header class="sbar">

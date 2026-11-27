@@ -37,3 +37,10 @@ export function libEntries(){
     ...team.map(e => ({id:e.id, source:'team', play:e.play, raw:e.raw, tags: e.play.tags || []})),
     ...repoDrills.map(e => ({...e, source:'repo', tags: e.play.tags || []}))];
 }
+
+/* Practice plans, [{id, plan}] (model/plans.js), as storage.js loads them. Other modules read `plans`; only these
+   functions change it. */
+export let plans = [];
+export function setPlans(list){ plans = list; }
+export function savePlanEntry(entry){ const i = plans.findIndex(x => x.id === entry.id); if (i >= 0) plans[i] = entry; else plans.push(entry); }
+export function dropPlanEntry(id){ plans = plans.filter(x => x.id !== id); }
