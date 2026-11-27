@@ -140,9 +140,24 @@ function openDrill(id){
   const e = runPlan(), n = e ? e.plan.items.length : 0;
   $('#plan-bar-name').textContent = e ? e.plan.name : '';
   $('#plan-bar-pos').textContent = `${run.index + 1} of ${n}`;
+  // straight on to the next part of the practice, named (#61)
+  const next = e && run.index + 1 < n ? resolveItems(e.plan, runEntries())[run.index + 1] : null;
+  $('#plan-bar-next').hidden = !next;
+  if (next){
+    const name = itemTitle(next.item, next.entry);
+    $('#plan-bar-next-name').textContent = name;
+    $('#plan-bar-next').title = `Next in the plan: ${name} (${minutesText(next.item.minutes)})`;
+  }
   $('#plan-bar').hidden = false;
 }
 $('#plan-bar-back').addEventListener('click', () => { if (run) openRun(run.id, run.index, run.shared); });
+// a drill opens in the player; a block (or a drill that is gone) shows on the plan screen
+$('#plan-bar-next').addEventListener('click', () => {
+  const e = runPlan(); if (!e || run.index + 1 >= e.plan.items.length) return;
+  run.index++;
+  const {entry} = resolveItems(e.plan, runEntries())[run.index];
+  if (entry) openDrill(entry.id); else openRun(run.id, run.index, run.shared);
+});
 $('#plan-bar-end').addEventListener('click', endPlan);
 
 /* ---------- adding the drill on screen to a plan ---------- */
