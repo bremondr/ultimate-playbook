@@ -99,6 +99,8 @@ export function fitCaption(){
 export function select(hash){
   const {id, t: at} = splitTime(hash);
   if (id && id.startsWith('d=')){ openShared(id.slice(2), at); return; }
+  // a whole practice plan in a link: the plans feature opens it, over the first drill if nothing is on screen yet
+  if (id && id.startsWith('plan=')){ if (!model){ const first = builtins()[0]; showPlay(first, {source:'builtin', id:first.id}); } emit('plan-link', id.slice(5)); return; }
   const entries = libEntries();
   let e = entries.find(x => x.id === id);
   const found = !!e;

@@ -16,6 +16,7 @@ on('store-loaded', () => { buildNav(); followStore(); });
 on('team-loaded', () => { buildNav(); followStore(); });
 on('access-changed', () => { showWriteAccess(); showPlanWriteAccess(); if (mode !== 'edit') updateAct(); });
 on('plans-changed', () => { buildNav(); plansChanged(); });
+on('plan-link', openPlanLink);
 on('edit', openEditor);
 on('back-to-editor', backToEditor);
 /* features, each self-contained in its own file */
@@ -24,7 +25,7 @@ import './features/backup.js';
 import './features/present.js';
 import './features/feedback.js';
 import './features/team.js';
-import { planShowing, plansChanged, showPlanWriteAccess } from './features/plans.js';
+import { openPlanLink, planShowing, plansChanged, showPlanWriteAccess } from './features/plans.js';
 import './pwa.js';
 
 /* ---------- keys and window events ---------- */
