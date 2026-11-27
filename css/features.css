@@ -152,6 +152,17 @@ body.presenting .cap small{font-size:16px;margin-top:4px}
 .planbar{display:flex;align-items:center;gap:8px;background:var(--accent-soft);border-radius:10px;padding:4px 4px 4px 12px;font-size:14px}
 .planbar[hidden]{display:none}
 .planbar-what{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.planbar-next{max-width:50%;min-width:0;background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.planbar-next b{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.planbar-next[hidden]{display:none}
+@media (max-width:640px){
+  /* the plan's name on its own line, the buttons under it */
+  .planbar{flex-wrap:wrap;padding:6px}
+  .planbar-what{flex-basis:calc(100% - 48px);padding-left:6px}
+  .planbar #plan-bar-end{order:-1}
+  .planbar-what{order:-2}
+  .planbar-next{flex:1;max-width:none;justify-content:center}
+}
 /* printing a plan: only the plan */
 .planprint{display:none}
 @media print{
