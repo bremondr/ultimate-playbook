@@ -13,7 +13,7 @@ import { screenOrient } from './util.js';
 on('showing', () => { markNav(); planShowing(); });
 on('drills-changed', buildNav);
 on('store-loaded', () => { buildNav(); followStore(); });
-on('team-loaded', () => { buildNav(); followStore(); });
+on('team-loaded', () => { buildNav(); followStore(); plansChanged(); });
 on('access-changed', () => { showWriteAccess(); showPlanWriteAccess(); if (mode !== 'edit') updateAct(); });
 on('plans-changed', () => { buildNav(); plansChanged(); });
 on('plan-link', openPlanLink);

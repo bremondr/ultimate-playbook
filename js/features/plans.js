@@ -18,7 +18,7 @@ import { canWrite, entryFrom, errText, saveDrill, savePlan, serialize, storeMode
 import { encodeQR, qrSvg } from './qr.js';
 import { $, newDocId } from '../util.js';
 import { editPlan } from './plan-editor.js';
-import { publishPlan, removeTeamPlan, teamPlanHistory, teamsToPublish } from './team.js';
+import { openTeamToken, publishPlan, removeTeamPlan, teamPlanHistory, teamsFollowed, teamsToPublish } from './team.js';
 
 // the plans saved here, and the plans of the teams followed (team.js), with the team's name on them
 const allPlans = () => [...plans, ...repoPlans];
@@ -82,7 +82,7 @@ function renderRun(){
   const local = !run.shared && !e.repo;
   $('#plan-run-edit').hidden = run.shared || (e.repo ? !e.canWrite : canWrite === false);
   $('#plan-run-save').hidden = canWrite === false || !run.shared;
-  $('#plan-run-publish').hidden = !local || canWrite === false || !teamsToPublish().length;
+  $('#plan-run-publish').hidden = !local || canWrite === false || !teamsFollowed().length;   // without a token it says how to add one
   $('#plan-run-history').hidden = !e.repo;
   $('#plan-run-meta').textContent += e.repo ? ` · ${e.label} team plan` : '';
   const now = $('#plan-now'); now.replaceChildren();
@@ -209,9 +209,9 @@ function printPlan(p, entries = libEntries()){
 }
 
 /* ---------- keeping up: plans reloaded or changed elsewhere; Escape closes what is open ---------- */
-export function plansChanged(){ if (!$('#plan-run').hidden) renderRun(); }
+export function plansChanged(){ if (!$('#plan-run').hidden) renderRun(); if (!$('#plan-publish').hidden) openPublish(); }
 document.addEventListener('keydown', e => {
-  if (e.key !== 'Escape') return;
+  if (e.key !== 'Escape' || document.querySelector('.gs:not([hidden])')) return;
   const open = ['#plan-publish', '#plan-share', '#plan-add', '#plan-run'].find(s => !$(s).hidden);
   if (!open) return;
   e.preventDefault(); e.stopPropagation();
@@ -228,13 +228,23 @@ export function planShowing(){
 /* ---------- team repos (#53): publishing a plan, a team plan's history ---------- */
 function openPublish(){
   const e = runPlan(); if (!e || e.repo || run.shared) return;
-  const teams = teamsToPublish(), pick = $('#plan-publish-team');
+  const teams = teamsToPublish(), followed = teamsFollowed(), pick = $('#plan-publish-team'), was = pick.value, opening = $('#plan-publish').hidden;
   pick.replaceChildren(...teams.map(t => new Option(t.label, t.repo)));
+  if (teams.some(t => t.repo === was)) pick.value = was;
   $('#plan-publish-team-l').hidden = teams.length < 2;
+  $('#plan-publish-note').hidden = $('#plan-publish-go').hidden = !teams.length;
+  // no token yet: say so, with a button to the token form for each followed team
+  $('#plan-publish-token').replaceChildren(...(teams.length ? [] : followed.map(t => {
+    const b = el('button', 'ghost', followed.length > 1 ? `Add a token for ${t.label}` : 'Add a token'); b.type = 'button';
+    b.addEventListener('click', () => openTeamToken(t.repo));
+    return b;
+  })));
   const mine = new Set(e.plan.items.filter(it => it.kind === 'drill' && team.some(d => d.id === it.drill)).map(it => it.drill));
-  $('#plan-publish-what').textContent = `Everyone in the team will see “${e.plan.name}”.` +
-    (mine.size ? ` ${plural(mine.size, 'drill')} saved only on this device will be published to the team too, so they can open it.` : '');
-  $('#plan-publish-status').textContent = ''; $('#plan-publish-note').value = '';
+  $('#plan-publish-what').textContent = !teams.length
+    ? `To publish a plan for ${followed.length === 1 ? followed[0].label : 'a team'}, this device needs a token for the team, the same one used to publish drills (Teams and tokens).`
+    : `Everyone in the team will see “${e.plan.name}”.` +
+      (mine.size ? ` ${plural(mine.size, 'drill')} saved only on this device will be published to the team too, so they can open it.` : '');
+  if (opening){ $('#plan-publish-status').textContent = ''; $('#plan-publish-note').value = ''; }
   $('#plan-publish').hidden = false;
 }
 $('#plan-run-publish').addEventListener('click', openPublish);

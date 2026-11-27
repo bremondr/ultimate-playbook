@@ -247,8 +247,12 @@ function plansChanged(sources){
   const key = list => JSON.stringify(list.map(e => [e.id, e.sha, e.canWrite]));
   if (key(next) !== key(repoPlans)){ setRepoPlans(next); emit('plans-changed'); }
 }
-/** The teams this device can publish to, [{repo, label}] (the drills store knows; the token is the same). */
-export const teamsToPublish = () => store ? store.sources().filter(s => s.canWrite).map(s => ({repo: s.repo, label: teamLabel(s.repo)})) : [];
+/** The followed teams, [{repo, label, canWrite}]: canWrite when this device has a token that can publish (the drills
+    store knows; the plans use the same token). */
+export const teamsFollowed = () => store ? store.sources().map(s => ({repo: s.repo, label: teamLabel(s.repo), canWrite: !!s.canWrite})) : [];
+export const teamsToPublish = () => teamsFollowed().filter(t => t.canWrite);
+/** Teams and tokens, open at a team's token form. */
+export function openTeamToken(repo){ if (panel) panel.open({token: repo}); }
 
 /** Publish a practice plan to a team: its drills saved only on this device go along (as team drills), so the team
     sees every drill it uses. Drills from another team stop it. `id` keeps a plan's id (a team plan saved again).
