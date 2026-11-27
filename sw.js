@@ -26,7 +26,6 @@ const APP_FILES = [
   './css/tokens.css',
   './index.html',
   './js/data/angel.js',
-  './js/data/builtins.js',
   './js/data/fields.js',
   './js/data/formations.js',
   './js/editor/canvas.js',

@@ -286,10 +286,9 @@ export function teamPlanHistory(e, onOpen){
 }
 /* ---------- a GitHub in memory, to try the feature without a real team repo ---------- */
 async function fakeGitHub(){
-  const [{createFakeGitHub}, {angelDrill}, {builtins}] = await Promise.all([
-    import('../vendor/git-store-kit/fake-github.js'), import('../data/angel.js'), import('../library.js')]);
+  const [{createFakeGitHub}, {angelDrill}] = await Promise.all([
+    import('../vendor/git-store-kit/fake-github.js'), import('../data/angel.js')]);
   const fake = createFakeGitHub();
-  const fromBuiltin = (id, name) => { const p = builtins().find(b => b.id === id); return p && {...p, name}; };
   const file = (id, d) => writeTeamDrill({...d, id, createdAt: Date.now() - 864e5, updatedAt: Date.now() - 864e5});
   await fake.addRepo(shortName('sunset'), {files: {
     'drills/sunset-angel.json': file('sunset-angel', {...angelDrill('basic'), name: 'Angel drill, Sunset style'}),
@@ -297,10 +296,9 @@ async function fakeGitHub(){
     'drills/README.md': 'Sunset’s drills, one file per drill.',
     'plans/sunset-tuesday.json': writeTeamPlan({id: 'sunset-tuesday', name: 'Sunset Tuesday', note: 'Breaks and resets', createdAt: Date.now() - 864e5, updatedAt: Date.now() - 864e5,
       items: [{kind: 'block', title: 'Warm-up', minutes: 15, note: ''}, {kind: 'drill', drill: 'here:sunset-angel', name: 'Angel drill, Sunset style', minutes: 20, note: 'Bend it'},
-        {kind: 'drill', drill: 'box', name: 'Box drill', minutes: 15, note: ''}, {kind: 'block', title: 'Scrimmage', minutes: 30, note: ''}]})
+        {kind: 'drill', drill: 'angel-cutback', name: 'Angel drill: fake & cut back', minutes: 15, note: ''}, {kind: 'block', title: 'Scrimmage', minutes: 30, note: ''}]})
   }});
-  const vert = fromBuiltin('vert-stack', 'Tuesday vertical stack');
-  await fake.addRepo(shortName('tuesday'), {files: vert ? {'drills/tuesday-vert.json': file('tuesday-vert', vert)} : {}});
+  await fake.addRepo(shortName('tuesday'), {files: {'drills/tuesday-angel.json': file('tuesday-angel', {...angelDrill('basic'), name: 'Tuesday angel'})}});
   for (const team of ['sunset', 'tuesday']) fake.addToken(FAKE_TOKEN, shortName(team), 'write');
   window.PLAYBOOK_FAKE_GITHUB = fake;   // for the regression check and for trying conflicts by hand (fake.edit)
   return fake;

@@ -38,9 +38,9 @@ test('saved, read back, timed and copied with the drill; nothing written without
 
 test('built-in drills have tags in the library, not in their play data', () => {
   const entries = libEntries().filter(e => e.source === 'builtin');
-  assert.ok(entries.length >= 7);
+  assert.deepEqual(entries.map(e => e.id), ['angel', 'angel-cutback'], 'only the angel drills are built in');
   entries.forEach(e => assert.ok(e.tags.length > 0, `${e.id} has tags`));
   builtins().forEach(p => assert.equal('tags' in p, false, `${p.id}'s play data stays as it was`));
-  const vert = entries.find(e => e.id === 'vert-stack');
-  assert.deepEqual(copyOfEntry(vert).tags, vert.tags, 'a copy of a built-in keeps its tags');
+  const angel = entries.find(e => e.id === 'angel');
+  assert.deepEqual(copyOfEntry(angel).tags, angel.tags, 'a copy of a built-in keeps its tags');
 });

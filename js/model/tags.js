@@ -1,6 +1,6 @@
 /* ---------- tags on drills: what a tag may be (no DOM, so the unit tests run it in plain Node) ----------
    A tag is a short word or two, such as "cutting" or "zone defense": lower case, single spaces, at most 24 characters.
-   A drill has at most 8, each once. Built-in drills get theirs from data/builtins.js (BUILTIN_TAGS), not from their
+   A drill has at most 8, each once. Built-in drills get theirs from data/angel.js (BUILTIN_TAGS), not from their
    play data, so the model output of the built-ins (tests/baseline.json) stays the same. */
 export const MAX_TAGS = 8, MAX_TAG = 24;
 

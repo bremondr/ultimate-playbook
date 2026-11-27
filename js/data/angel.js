@@ -1,3 +1,10 @@
+/* Tags of the built-in drills (model/tags.js). Kept apart from the drill data, so the model output of the built-ins
+   (tests/baseline.json) doesn't change when tags do. */
+export const BUILTIN_TAGS = {
+  'angel': ['throwing', 'cutting', 'two lines'],
+  'angel-cutback': ['throwing', 'cutting', 'two lines', 'fakes']
+};
+
 /* Angel drill: two lines 13 m apart facing the attacked end zone. Written as a raw drill, like one drawn in the
    editor; library.js times it automatically. Its chips replace the automatic ones.
    variant 'basic': straight throw upline to the diagonal cut.
