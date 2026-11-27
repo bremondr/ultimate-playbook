@@ -2,7 +2,7 @@
    memory (js/vendor/git-store-kit/fake-github.js). Plain Node: node --test tests/ */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { commitMessage, FILE_TYPE, linkName, readTeamDrill, shortName, teamLabel, teamStoreOptions, writeTeamDrill } from '../js/features/team-format.js';
+import { commitMessage, DEMO_REPO, FILE_TYPE, linkName, planStoreOptions, readTeamDrill, shortName, teamLabel, teamStoreOptions, writeTeamDrill, writeTeamPlan } from '../js/features/team-format.js';
 import { createGitStore, GitStoreConflict } from '../js/vendor/git-store-kit/store.js';
 import { createFakeGitHub } from '../js/vendor/git-store-kit/fake-github.js';
 import { memoryCache } from '../js/vendor/git-store-kit/cache.js';
@@ -187,4 +187,63 @@ test('“Restore from a file” takes a team file as a single drill', () => {
   assert.equal(bad, 0);
   assert.equal(add[0].id, 'c1');
   assert.equal(add[0].body.name, 'Hex cuts');
+});
+
+/* ---------- the demo team, followed by default and read from its index (#68, git-store-kit 1.2.0) ---------- */
+// the demo repo's files (the fake writes git-store-index.json for them, as the index workflow does)
+const demoFiles = () => ({
+  'drills/demo-angel.json': writeTeamDrill(drill('demo-angel', 'Demo angel')),
+  'drills/README.md': 'Demo drills',
+  'plans/demo-practice.json': writeTeamPlan({id: 'demo-practice', name: 'Demo practice', note: '', createdAt: 1, updatedAt: 2,
+    items: [{kind: 'drill', drill: 'here:demo-angel', name: 'Demo angel', minutes: 20, note: ''}]})
+});
+async function demoSetup({index = true} = {}){
+  const fake = createFakeGitHub(), storage = memoryStorage(), cache = memoryCache();
+  await fake.addRepo(DEMO_REPO, {index, files: demoFiles()});
+  // as team.js makes them: both stores get the demo team as a default, and share the followed teams
+  const make = () => ({
+    drills: createGitStore(teamStoreOptions({defaults: [DEMO_REPO], fetch: fake.fetch, cache, storage})),
+    plans: createGitStore(planStoreOptions({defaults: [DEMO_REPO], fetch: fake.fetch, cache, storage}))
+  });
+  const apiCalls = () => fake.requests.api;
+  return {fake, make, apiCalls};
+}
+
+test('the demo team is the Demo team, in bremondr/ultimate-playbook-demo', () => {
+  assert.equal(DEMO_REPO, 'bremondr/ultimate-playbook-demo');
+  assert.equal(teamLabel(DEMO_REPO), 'Demo');
+  assert.equal(linkName(DEMO_REPO), 'demo');
+});
+
+test('a first visit follows the demo team, and loads its drills and plan from the index with no API requests', async () => {
+  const {make, apiCalls} = await demoSetup();
+  const {drills, plans} = make();
+  assert.deepEqual(drills.following(), [DEMO_REPO]);
+  assert.deepEqual(plans.following(), [DEMO_REPO]);
+  const [[d], [p]] = await Promise.all([drills.load(), plans.load()]);
+  assert.equal(d.error, null);
+  assert.equal(d.fromIndex, true);
+  assert.deepEqual(d.items.map(i => i.id), ['demo-angel']);
+  assert.deepEqual(p.items.map(i => i.id), ['demo-practice']);
+  assert.equal(apiCalls(), 0, 'no api.github.com requests without a token when the repo has an index');
+});
+
+test('without an index the demo team is still loaded, through the API', async () => {
+  const {make, apiCalls} = await demoSetup({index: false});
+  const [d] = await make().drills.load();
+  assert.deepEqual(d.items.map(i => i.id), ['demo-angel']);
+  assert.ok(apiCalls() > 0);
+});
+
+test('removing the demo team is remembered; its link follows it again', async () => {
+  const {make} = await demoSetup();
+  const first = make();
+  await first.drills.load();
+  await first.drills.unfollow(DEMO_REPO);
+  assert.deepEqual(first.plans.following(), [], 'the plans store follows the same teams');
+  const again = make();   // the next start
+  assert.deepEqual(again.drills.following(), [], 'it doesn’t come back');
+  assert.deepEqual(again.plans.following(), []);
+  assert.equal(again.drills.followFromHash('#team=demo'), DEMO_REPO);
+  assert.deepEqual(make().drills.following(), [DEMO_REPO]);
 });

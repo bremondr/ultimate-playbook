@@ -2,14 +2,17 @@
    git-store-kit (js/vendor/git-store-kit/, a copy of a release from bremondr/web-kit) keeps the drills as files
    drills/<id>.json, one commit per change, reads them through GitHub's API, keeps the last good copy on the device,
    and has the panel for tokens, conflicts and history. team-format.js says what a drill file is. This file:
-   - follows a team from a link (#team=sunset, or #team=owner/repo) and loads every followed team at start;
+   - follows the demo team (bremondr/ultimate-playbook-demo) by default, and a team from a link (#team=sunset, or
+     #team=owner/repo), and loads every followed team at start. Without a token a team is read from its index file
+     (git-store-index.json) on raw.githubusercontent.com when it has one, so loading costs no GitHub API requests;
    - puts team drills in the drill list, read-only, tagged with the team's name (library.js, repoDrills);
    - says under the list when each team was last checked, or why it couldn't be loaded, with "Add a token";
    - in the share popover: Publish to team (a saved drill), History and Remove from team (a team drill), team links;
    - opens the panel from the drawer and the options popover.
    Not when the page runs as a Claude artifact: that has its own team store (storage.js).
    Trying it without GitHub: on a local server or a preview, add ?fakegithub to the address. The teams then come from
-   a GitHub in memory (fake-github.js) with two teams, sunset and tuesday, and a token shown in the drawer. */
+   a GitHub in memory (fake-github.js) with two teams, sunset and tuesday, the demo team (with an index file), and a
+   token shown in the drawer. */
 import { emit } from '../events.js';
 import { builtins, repoDrills, repoPlans, setRepoDrills, setRepoPlans, team } from '../library.js';
 import { timeDraft } from '../model/timing.js';
@@ -21,7 +24,7 @@ import { createPanel } from '../vendor/git-store-kit/panel.js';
 import { createGitStore, tokenNeed } from '../vendor/git-store-kit/store.js';
 import { indexedCache } from '../vendor/git-store-kit/cache.js';
 import { hashValue, hashWithout } from '../vendor/git-store-kit/sources.js';
-import { linkName, planRefsIn, planRefsOut, planStoreOptions, shortName, teamLabel, teamStoreOptions, writeTeamDrill, writeTeamPlan } from './team-format.js';
+import { DEMO_REPO, linkName, planRefsIn, planRefsOut, planStoreOptions, shortName, teamLabel, teamStoreOptions, writeTeamDrill, writeTeamPlan } from './team-format.js';
 
 const artifact = !!(window.claude && typeof window.claude.use === 'function');
 const preview = !!window.PLAYBOOK_PREVIEW;
@@ -36,13 +39,14 @@ let planStore = null, planPanel = null;
 
 /* ---------- start ---------- */
 async function start(){
-  let extra = {};
+  // the demo team is followed once, on a first visit; removing it is remembered (git-store-kit's `defaults`)
+  let extra = {defaults: [DEMO_REPO]};
   if (fakeMode){
     // a separate app name, so the fake teams never mix with the real ones in this browser's storage and saved copies
-    extra = {app: 'ultimate-playbook-fake', fetch: (await fakeGitHub()).fetch};
+    extra = {...extra, app: 'ultimate-playbook-fake', fetch: (await fakeGitHub()).fetch};
     const note = $('#teams-fake');
     note.hidden = false;
-    note.textContent = `Fake GitHub, for trying: teams “sunset” and “tuesday”. To publish, paste this token for a team in Teams and tokens: ${FAKE_TOKEN}`;
+    note.textContent = `Fake GitHub, for trying: teams “sunset” and “tuesday”, and the demo team. To publish, paste this token for a team in Teams and tokens: ${FAKE_TOKEN}`;
   }
   store = createGitStore(teamStoreOptions(extra));
   panel = createPanel(store, {title: preview ? 'Teams (preview)' : 'Teams', noun: 'drill', sourceLabel: 'team'});
@@ -92,7 +96,12 @@ function entriesOf(sources){
   return list.sort((a, b) => a.label.localeCompare(b.label) || (a.raw.createdAt - b.raw.createdAt) || a.play.name.localeCompare(b.play.name));
 }
 
+let followedBefore = null;
 function changed(sources){
+  // a team removed in Teams and tokens (the drills store's panel): the plans store drops it too, with its saved copy
+  const now = new Set(sources.map(s => s.repo.toLowerCase()));
+  if (followedBefore && planStore) for (const r of followedBefore) if (!now.has(r)) planStore.unfollow(r);
+  followedBefore = now;
   const next = entriesOf(sources);
   const key = list => JSON.stringify(list.map(e => [e.id, e.sha, e.canWrite]));
   if (key(next) !== key(repoDrills)){ setRepoDrills(next); emit('team-loaded'); }
@@ -144,6 +153,8 @@ function renderLines(sources = store.sources()){
 /* ---------- in the share popover ---------- */
 const say = t => { $('#team-share-status').textContent = t; };
 const writable = () => store.sources().filter(s => s.canWrite);
+// Publish to team is offered for teams the person may be in: not the demo team, unless this device can publish there
+const offersPublish = s => !!s.canWrite || s.repo.toLowerCase() !== DEMO_REPO.toLowerCase();
 let removeArmed = null;
 function armRemove(on){
   clearTimeout(removeArmed); removeArmed = null;
@@ -157,8 +168,8 @@ function renderShare(){
   if (box.hidden) return;
   // a saved drill: Publish to team
   const mine = current.source === 'team' && team.find(x => x.id === current.id), can = writable();
-  $('#team-publish').hidden = !mine;
-  if (mine){
+  $('#team-publish').hidden = !mine || !sources.some(offersPublish);
+  if (!$('#team-publish').hidden){
     const published = can.filter(s => s.items.some(i => i.id === mine.id));
     $('#team-publish-what').textContent = !can.length
       ? 'To publish this drill for a team, add a token for the team in Teams and tokens.'
@@ -247,9 +258,10 @@ function plansChanged(sources){
   const key = list => JSON.stringify(list.map(e => [e.id, e.sha, e.canWrite]));
   if (key(next) !== key(repoPlans)){ setRepoPlans(next); emit('plans-changed'); }
 }
-/** The followed teams, [{repo, label, canWrite}]: canWrite when this device has a token that can publish (the drills
-    store knows; the plans use the same token). */
-export const teamsFollowed = () => store ? store.sources().map(s => ({repo: s.repo, label: teamLabel(s.repo), canWrite: !!s.canWrite})) : [];
+/** The followed teams to offer publishing to, [{repo, label, canWrite}]: canWrite when this device has a token that can
+    publish (the drills store knows; the plans use the same token). The demo team only with such a token: everyone
+    follows it, and only its owner can publish there. */
+export const teamsFollowed = () => store ? store.sources().filter(offersPublish).map(s => ({repo: s.repo, label: teamLabel(s.repo), canWrite: !!s.canWrite})) : [];
 export const teamsToPublish = () => teamsFollowed().filter(t => t.canWrite);
 /** Teams and tokens, open at a team's token form. */
 export function openTeamToken(repo){ if (panel) panel.open({token: repo}); }
@@ -299,6 +311,12 @@ async function fakeGitHub(){
         {kind: 'drill', drill: 'angel-cutback', name: 'Angel drill: fake & cut back', minutes: 15, note: ''}, {kind: 'block', title: 'Scrimmage', minutes: 30, note: ''}]})
   }});
   await fake.addRepo(shortName('tuesday'), {files: {'drills/tuesday-angel.json': file('tuesday-angel', {...angelDrill('basic'), name: 'Tuesday angel'})}});
+  await fake.addRepo(DEMO_REPO, {index: true, files: {
+    'drills/demo-angel.json': file('demo-angel', {...angelDrill('basic'), name: 'Demo: angel drill'}),
+    'drills/demo-angel-break.json': file('demo-angel-break', {...angelDrill('break'), name: 'Demo: angel with a fake'}),
+    'plans/demo-practice.json': writeTeamPlan({id: 'demo-practice', name: 'Demo practice', note: '', createdAt: Date.now() - 864e5, updatedAt: Date.now() - 864e5,
+      items: [{kind: 'block', title: 'Warm-up', minutes: 15, note: ''}, {kind: 'drill', drill: 'here:demo-angel', name: 'Demo: angel drill', minutes: 20, note: ''}]})
+  }});
   for (const team of ['sunset', 'tuesday']) fake.addToken(FAKE_TOKEN, shortName(team), 'write');
   window.PLAYBOOK_FAKE_GITHUB = fake;   // for the regression check and for trying conflicts by hand (fake.edit)
   return fake;
