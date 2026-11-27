@@ -7,12 +7,15 @@
    - prints a plan as a clean list with start times (a print stylesheet in css/features.css).
    The plan editor is plan-editor.js. Plans are stored by storage.js (savePlan, removePlan), next to the drills. */
 import { emit } from '../events.js';
-import { libEntries, plans, savePlanEntry } from '../library.js';
+import { libEntries, plans, saveEntry, savePlanEntry } from '../library.js';
+import { timeDraft } from '../model/timing.js';
 import { matchesQuery } from '../model/search.js';
 import { clock, drillItem, itemTitle, minutesText, newPlan, resolveItems, startTimes, totalMinutes } from '../model/plans.js';
 import { addNavSection, closePops, openDrawer } from '../nav.js';
-import { current, playing, setPlaying } from '../player.js';
-import { canWrite, errText, savePlan, storeMode } from '../storage.js';
+import { current, playing, setPlaying, showReadOnly } from '../player.js';
+import { planLink, readSharedPlan } from '../share.js';
+import { canWrite, entryFrom, errText, saveDrill, savePlan, serialize, storeMode } from '../storage.js';
+import { encodeQR, qrSvg } from './qr.js';
 import { $, newDocId } from '../util.js';
 import { editPlan } from './plan-editor.js';
 
@@ -40,12 +43,20 @@ $('#plan-new').addEventListener('click', () => { openDrawer(false); editPlan(nul
 export function showPlanWriteAccess(){ $('#plan-new').hidden = canWrite === false; $('#plan-add-open').hidden = canWrite === false; }
 
 /* ---------- stepping through a plan ---------- */
-let run = null;   // {id, index}: the plan being stepped through, and where
-const runPlan = () => run && planById(run.id);
+/* run: the plan being stepped through and where, {id, index}. A plan opened from a link (#52) isn't saved here:
+   {id: null, index, shared: {plan, drills}}, where `drills` are the copies of its drawn drills (d1, d2…). */
+let run = null;
+const runPlan = () => run && (run.shared ? {id: null, plan: run.shared.plan} : planById(run.id));
+// the library, plus a shared plan's own drills as entries 'd1', 'd2'… (shown read-only, like a shared drill)
+function runEntries(){
+  const lib = libEntries();
+  if (!run || !run.shared) return lib;
+  return [...lib, ...Object.entries(run.shared.drills).map(([k, raw]) => ({id: k, source: 'packed', raw, play: {...timeDraft({...raw, id: k}), id: k}, tags: raw.tags || []}))];
+}
 
-export function openRun(id, index = 0){
-  if (!planById(id)) return;
-  run = {id, index};
+export function openRun(id, index = 0, shared = null){
+  if (!shared && !planById(id)) return;
+  run = {id: shared ? null : id, index, shared};
   if (playing) setPlaying(false);
   closePops(); $('#plan-bar').hidden = true;
   $('#plan-run').hidden = false;
@@ -58,12 +69,13 @@ function endPlan(){ closeRun(); $('#plan-bar').hidden = true; run = null; }
 function renderRun(){
   const e = runPlan();
   if (!e){ endPlan(); return; }
-  const p = e.plan, items = resolveItems(p, libEntries()), starts = startTimes(p), total = totalMinutes(p);
+  const p = e.plan, items = resolveItems(p, runEntries()), starts = startTimes(p), total = totalMinutes(p);
   run.index = Math.max(0, Math.min(run.index, items.length - 1));
   $('#plan-run-name').textContent = p.name;
   $('#plan-run-meta').textContent = `${plural(items.length, 'item')} · ${minutesText(total)}`;
   $('#plan-run-note').textContent = p.note; $('#plan-run-note').hidden = !p.note;
-  $('#plan-run-edit').hidden = canWrite === false;
+  $('#plan-run-edit').hidden = canWrite === false || !!run.shared;
+  $('#plan-run-save').hidden = canWrite === false || !run.shared;
   const now = $('#plan-now'); now.replaceChildren();
   if (!items.length){
     now.appendChild(el('p', 'small', 'This plan has no items yet. Tap Edit to add drills and blocks.'));
@@ -98,19 +110,23 @@ function renderRun(){
 $('#plan-back').addEventListener('click', () => { if (run){ run.index--; renderRun(); } });
 $('#plan-next').addEventListener('click', () => { if (run){ run.index++; renderRun(); } });
 $('#plan-run-close').addEventListener('click', endPlan);
-$('#plan-run-edit').addEventListener('click', () => { const e = runPlan(); if (e){ closeRun(); editPlan(e.id, e.plan, () => openRun(e.id, run ? run.index : 0)); } });
-$('#plan-run-print').addEventListener('click', () => { const e = runPlan(); if (e) printPlan(e.plan); });
+$('#plan-run-edit').addEventListener('click', () => { const e = runPlan(); if (e && e.id){ closeRun(); editPlan(e.id, e.plan, () => openRun(e.id, run ? run.index : 0)); } });
+$('#plan-run-print').addEventListener('click', () => { const e = runPlan(); if (e) printPlan(e.plan, runEntries()); });
+$('#plan-run-share').addEventListener('click', () => { const e = runPlan(); if (e) sharePlan(e.plan); });
+$('#plan-run-save').addEventListener('click', saveShared);
 
 // a drill of the plan in the player, with the bar that leads back
 function openDrill(id){
   closeRun();
-  if (location.hash.slice(1) !== id) location.hash = id;
+  const packed = run.shared && run.shared.drills[id];
+  if (packed) showReadOnly(packed, `${run.shared.plan.name} · from a shared plan`);   // the plan's link stays in the address
+  else if (location.hash.slice(1) !== id) location.hash = id;
   const e = runPlan(), n = e ? e.plan.items.length : 0;
   $('#plan-bar-name').textContent = e ? e.plan.name : '';
   $('#plan-bar-pos').textContent = `${run.index + 1} of ${n}`;
   $('#plan-bar').hidden = false;
 }
-$('#plan-bar-back').addEventListener('click', () => { if (run) openRun(run.id, run.index); });
+$('#plan-bar-back').addEventListener('click', () => { if (run) openRun(run.id, run.index, run.shared); });
 $('#plan-bar-end').addEventListener('click', endPlan);
 
 /* ---------- adding the drill on screen to a plan ---------- */
@@ -149,8 +165,8 @@ $('#plan-add-close').addEventListener('click', () => { $('#plan-add').hidden = t
 $('#plan-add-new').addEventListener('click', () => { const entry = drillOnScreen(); if (entry){ $('#plan-add').hidden = true; editPlan(null, {...newPlan(), items: [drillItem(entry)]}); } });
 
 /* ---------- printing: a clean list with start times ---------- */
-function printPlan(p){
-  const box = $('#plan-print'), items = resolveItems(p, libEntries()), starts = startTimes(p);
+function printPlan(p, entries = libEntries()){
+  const box = $('#plan-print'), items = resolveItems(p, entries), starts = startTimes(p);
   box.replaceChildren(
     el('h1', null, p.name),
     el('p', 'pp-meta', `${new Date().toLocaleDateString()} · ${plural(items.length, 'item')} · ${minutesText(totalMinutes(p))}`));
@@ -180,14 +196,69 @@ function printPlan(p){
 export function plansChanged(){ if (!$('#plan-run').hidden) renderRun(); }
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  const open = ['#plan-add', '#plan-run'].find(s => !$(s).hidden);
+  const open = ['#plan-share', '#plan-add', '#plan-run'].find(s => !$(s).hidden);
   if (!open) return;
   e.preventDefault(); e.stopPropagation();
-  if (open === '#plan-add') $('#plan-add').hidden = true; else endPlan();
+  if (open === '#plan-run') endPlan(); else $(open).hidden = true;
 }, true);
 // the bar belongs to the plan's drills: another drill on screen (picked from the list, say) ends it
 export function planShowing(){
   if ($('#plan-bar').hidden || !run) return;
   const e = runPlan(), item = e && e.plan.items[run.index];
-  if (!item || !current || current.id !== item.drill) $('#plan-bar').hidden = true;
+  const packed = run.shared && item && run.shared.drills[item.drill];
+  if (!item || !current || (packed ? current.source !== 'shared' : current.id !== item.drill)) $('#plan-bar').hidden = true;
+}
+
+/* ---------- sharing a plan as one link (#52) ---------- */
+async function sharePlan(p){
+  $('#plan-share-status').textContent = ''; $('#plan-share-link').value = 'Making the link…';
+  $('#plan-share-qr').hidden = true; $('#plan-share-qr-note').hidden = true; $('#plan-share-native').hidden = true;
+  $('#plan-share').hidden = false;
+  try {
+    const url = await planLink(p, runEntries());
+    $('#plan-share-link').value = url;
+    $('#plan-share-native').hidden = !(navigator.share && window.top === window);
+    let svg = null;
+    try { svg = qrSvg(encodeQR(url), {label: 'QR code of the link to this plan'}); } catch (err){ svg = null; }
+    if (svg){ $('#plan-share-qr').innerHTML = svg; $('#plan-share-qr').hidden = false; } else $('#plan-share-qr-note').hidden = false;
+  } catch (err){ $('#plan-share-link').value = 'Couldn’t make a link in this browser.'; }
+}
+$('#plan-share-close').addEventListener('click', () => { $('#plan-share').hidden = true; });
+$('#plan-share-copy').addEventListener('click', () => {
+  const inp = $('#plan-share-link');
+  const fallback = () => { inp.focus(); inp.select(); $('#plan-share-status').textContent = 'Press Ctrl+C (or ⌘C) to copy the selected link.'; };
+  try { navigator.clipboard.writeText(inp.value).then(() => { $('#plan-share-status').textContent = 'Link copied.'; }, fallback); } catch (e){ fallback(); }
+});
+$('#plan-share-native').addEventListener('click', () => {
+  const e = runPlan();
+  navigator.share({title: e ? e.plan.name : 'Practice plan', url: $('#plan-share-link').value}).catch(() => {});
+});
+
+/* a #plan= link: step through it as it is, with Save to my plans */
+export async function openPlanLink(packed){
+  try { const {plan, drills} = await readSharedPlan(packed); openRun(null, 0, {plan, drills}); }
+  catch (err){ $('#pkind').textContent = 'That shared plan link is damaged or incomplete'; }
+}
+// Save to my plans: its drawn drills become saved drills here, and the plan points at them
+async function saveShared(){
+  if (!run || !run.shared) return;
+  const {plan, drills} = run.shared, ids = {}, btn = $('#plan-run-save');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    for (const [k, raw] of Object.entries(drills)){
+      if (!plan.items.some(it => it.drill === k)) continue;
+      const id = newDocId(), now = Date.now(), body = serialize(raw); body.createdAt = now; body.updatedAt = now;
+      await saveDrill(id, body);
+      if (storeMode === 'local') saveEntry(entryFrom(id, body));
+      ids[k] = id;
+    }
+    if (Object.keys(ids).length && storeMode === 'local') emit('drills-changed');
+    const items = plan.items.map(it => it.kind === 'drill' && ids[it.drill] ? {...it, drill: ids[it.drill]} : it);
+    const id = newDocId(), saved = await savePlan(id, {...plan, items, createdAt: Date.now()});
+    if (storeMode === 'local'){ savePlanEntry(saved); emit('plans-changed'); }
+    history.replaceState(null, '', location.pathname + location.search);   // the link is done with
+    openRun(id, run.index);
+    $('#plan-run-meta').textContent += ' · saved to your plans';
+  } catch (err){ $('#plan-run-meta').textContent = errText(err); }
+  finally { btn.disabled = false; btn.textContent = 'Save to my plans'; }
 }

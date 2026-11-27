@@ -84,3 +84,27 @@ test('restoring: plan references follow drills that got another id here', () => 
   assert.equal(same.same, 1);
   assert.equal(same.renamed.c9, 'c5');
 });
+
+const { planBody, readPlanBody } = await import('../js/share.js');
+const { readRaw, serialize } = await import('../js/storage.js');
+
+test('a plan link packs drawn drills as copies and keeps built-ins by name', () => {
+  const mine = {...blankDraft(), name: 'My cuts'};
+  const entries = [...libEntries(), {id: 'c7', source: 'team', raw: mine, play: {name: 'My cuts'}}];
+  const p = {...newPlan('Thursday'), items: [
+    {kind: 'drill', drill: 'angel', name: 'Angel drill', minutes: 15, note: ''},
+    {kind: 'drill', drill: 'c7', name: 'My cuts', minutes: 10, note: 'Hard'},
+    blockItem('Water break', 3),
+    {kind: 'drill', drill: 'c7', name: 'My cuts', minutes: 5, note: 'Again'},
+    {kind: 'drill', drill: 'gone', name: 'Old', minutes: 5, note: ''}]};
+  const body = planBody(p, entries);
+  assert.deepEqual(body.plan.items.map(i => i.drill || i.title), ['angel', 'd1', 'Water break', 'd1', 'gone']);
+  assert.deepEqual(Object.keys(body.drills), ['d1'], 'one copy for a drill used twice');
+  assert.equal(body.drills.d1.name, 'My cuts');
+  // and back: checked like any plan and drill; only d-keys, only readable drills
+  const back = readPlanBody(JSON.parse(JSON.stringify({...body, drills: {...body.drills, evil: body.drills.d1, d2: {nope: 1}}})));
+  assert.equal(back.plan.name, 'Thursday');
+  assert.deepEqual(Object.keys(back.drills), ['d1']);
+  assert.deepEqual(serialize(back.drills.d1), serialize(readRaw(body.drills.d1)));
+  assert.throws(() => readPlanBody({plan: {name: 'no items'}}));
+});

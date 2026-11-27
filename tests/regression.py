@@ -480,6 +480,42 @@ def plans_flow(r, base):
     r.click('#menu'); r.check('3 items · 31 min' in r.text('#nav .plans .item'), f'added from the player: {r.text("#nav .plans .item")}')
 
 
+def plan_link_flow(r, base):
+    """A whole practice plan as one link (issue #52): share it, open it on a 'new device', step into its drawn drill, save it."""
+    p = r.page
+    p.goto(base); r.wait("document.querySelector('#pname').textContent !== '—'")
+    # a saved drill, and a plan with it, a built-in and a block, as if made here
+    p.evaluate("""async () => {
+      const {blankDraft} = await import('./js/model/drafts.js'), {serialize} = await import('./js/storage.js');
+      const d = {...blankDraft(), name: 'My cuts'}, body = {...serialize(d), createdAt: 1, updatedAt: 1};
+      localStorage.setItem('ub-team-drills', JSON.stringify({c7: body}));
+      localStorage.setItem('ub-plans', JSON.stringify({pl1: {name: 'Thursday', note: 'Break throws', createdAt: 2, updatedAt: 2, items: [
+        {kind: 'drill', drill: 'angel', name: 'Angel drill', minutes: 15, note: ''},
+        {kind: 'drill', drill: 'c7', name: 'My cuts', minutes: 10, note: 'Hard'},
+        {kind: 'block', title: 'Water break', minutes: 3, note: ''}]}}));
+    }""")
+    p.reload(); r.wait("document.querySelector('#pname').textContent !== '—'")
+    r.click('#menu'); p.click('#nav .plans .item'); r.click('#plan-run-share')
+    r.wait("document.querySelector('#plan-share-link').value.includes('#plan=')")
+    link = p.input_value('#plan-share-link')
+    r.check(link.startswith('https://bremondr.github.io/ultimate-playbook/#plan=') and r.visible('#plan-share-qr'), 'a plan link with its QR code')
+    r.snap('plan-share')
+    # another device: nothing saved, open the link here
+    p.evaluate('localStorage.clear()'); p.goto('about:blank'); p.goto(base + '#' + link.split('#', 1)[1])
+    r.wait("!document.querySelector('#plan-run').hidden")
+    r.check(r.text('#plan-run-name') == 'Thursday' and r.visible('#plan-run-save') and not r.visible('#plan-run-edit'), 'the shared plan opens, with Save to my plans')
+    r.click('#plan-next'); r.check(r.text('#plan-now h3') == 'My cuts', f'its drawn drill came along: {r.text("#plan-now h3")}')
+    p.click('#plan-now .primary'); r.wait("document.querySelector('#pname').textContent === 'My cuts'")
+    r.check(r.visible('#plan-bar') and 'from a shared plan' in r.text('#pkind'), f'the drawn drill plays, with the plan bar: {r.text("#pkind")}')
+    r.click('#plan-bar-back'); r.click('#plan-run-save')
+    r.wait("document.querySelector('#plan-run-meta').textContent.includes('saved to your plans')")
+    r.check(not r.visible('#plan-run-save') and r.visible('#plan-run-edit'), 'saved: now it can be edited')
+    p.keyboard.press('Escape'); r.click('#menu')
+    r.check(p.locator('#nav .plans .item').count() == 1 and 'My cuts' in r.text('#nav'), 'the plan and its drill are saved here')
+    p.goto(base + '#plan=zBroken'); r.wait("document.querySelector('#pkind').textContent.includes('damaged')")
+    r.check(r.text('#pkind') == 'That shared plan link is damaged or incomplete', 'a damaged plan link says so')
+
+
 def team_flow(r, base, can_write):
     p = r.page
     p.goto(base); r.wait("document.querySelector('#sync').textContent.startsWith('No team drills')")
@@ -586,7 +622,7 @@ def main():
                 return Run(page, name, trace, args.shots)
 
             for vp, size in VIEWPORTS.items():
-                for flow in (player_flow, editor_flow, throw_flow, arrows_flow, new_disc_flow, tags_flow, plans_flow):
+                for flow in (player_flow, editor_flow, throw_flow, arrows_flow, new_disc_flow, tags_flow, plans_flow, plan_link_flow):
                     r = page_for(f'{flow.__name__[:-5]}-{vp}', size)
                     try: flow(r, base)
                     except Exception as e: r.failures.append(f'{r.name}: stopped: {e}')

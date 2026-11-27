@@ -1,6 +1,7 @@
 /* ---------- sharing by link: the whole drill travels in the link, no server needed ----------
    Built-in drills link by name (#angel). Drawn drills are packed: JSON, deflated, base64url, after #d=.
    Links always point at the public site, so they open anywhere. The share popover itself is in nav.js. */
+import { readPlan, serializePlan } from './model/plans.js';
 import { readRaw, serialize } from './storage.js';
 
 const SHARE_BASE = 'https://bremondr.github.io/ultimate-playbook/';
@@ -33,6 +34,31 @@ export async function readShared(packed){
   if (!raw) throw new Error('empty');
   return raw;
 }
+
+/* A whole practice plan in one link (#plan=…): the plan, with copies of its drawn drills (saved here or from a team),
+   so the link works on its own. Built-in drills stay as their names. In the link, a drawn drill's item points at
+   "d1", "d2"… in `drills`. `entries` is the library (library.js libEntries). A drill that is gone stays as it is
+   and shows as missing on the other side. */
+export function planBody(plan, entries){
+  const byId = new Map(entries.map(e => [e.id, e])), drills = {}, keys = new Map();
+  const items = serializePlan(plan).items.map(it => {
+    const e = it.kind === 'drill' && byId.get(it.drill);
+    if (!e || e.source === 'builtin' || !e.raw) return it;
+    if (!keys.has(e.id)){ const k = 'd' + (keys.size + 1); keys.set(e.id, k); drills[k] = serialize({...e.raw, name: e.raw.name || 'Untitled drill'}); }
+    return {...it, drill: keys.get(e.id)};
+  });
+  return {plan: {...serializePlan(plan), items}, drills};
+}
+export async function planLink(plan, entries){ return shareBase() + '#plan=' + await packDrill(planBody(plan, entries)); }
+// the plan in a #plan= link: {plan, drills: {d1: raw, …}}, each checked like any stored plan or drill; throws if damaged
+export function readPlanBody(data){
+  const plan = readPlan(data && data.plan);
+  if (!plan) throw new Error('empty');
+  const drills = {};
+  for (const [k, v] of Object.entries((data && data.drills) || {})) if (/^d\d{1,3}$/.test(k)){ const raw = readRaw(v); if (raw) drills[k] = raw; }
+  return {plan, drills};
+}
+export async function readSharedPlan(packed){ return readPlanBody(await unpackDrill(packed)); }
 
 /* A playback time carried after the drill in a link, so a link can open a drill at a given moment (Send feedback
    uses it): `#angel&t=2.8` or `#d=…&t=2.8`. splitTime reads it back from the part after #. */

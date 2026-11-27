@@ -48,6 +48,7 @@ A practice plan is drills and blocks in order, each with its minutes, for a trai
 - A plan refers to its drills, so later edits show up in it; a drill that has been deleted shows as no longer available.
 - **Print** gives a clean list: each item's start time, minutes, name and note, and for drills their summary and steps.
 - Plans are saved where drawn drills are (this browser, or the team store in a Claude artifact), and **Back up to a file** includes them.
+- **Share** (on an open plan) gives one link, and its QR code, with the whole plan in it: built-in drills by name, drawn drills as copies, so it works without any account or server. Whoever opens it can step through it (drawn drills play read-only), print it, and **Save to my plans**, which also saves its drawn drills. A long plan with many drawn drills may not fit in a QR code; the link still works.
 
 Drills you draw are saved in this browser (local storage). To move them all to another device or browser, open **Drills** and use **Back up to a file** at the bottom of the list, then **Restore from a file** on the other device. Restoring adds the drills in the file: drills you already have are skipped, and a different drill with the same id is added as a copy, so nothing is overwritten. To send a single drill, share its link.
 
