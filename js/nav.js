@@ -3,14 +3,23 @@ import { dirty, draft, endSession } from './editor/session.js';
 import { emit } from './events.js';
 import { libEntries, team } from './library.js';
 import { blankDraft, copyOfEntry } from './model/drafts.js';
+import { matchesQuery } from './model/search.js';
 import { current, model, select, sharedRaw } from './player.js';
 import { builtinLink, drillLink } from './share.js';
 import { canWrite, storeMode } from './storage.js';
 import { $ } from './util.js';
 
+/* the drill list, filtered by the search box (all words, any order; case and accents don't matter) */
 export function buildNav(){
   const nav = $('#nav'); nav.replaceChildren();
-  const entries = libEntries();
+  const query = $('#nav-search').value;
+  const entries = libEntries().filter(e => matchesQuery(e.play, query));
+  if (!entries.length && query.trim()){
+    const p = document.createElement('p'); p.className = 'small navnone'; p.textContent = 'No drills match. ';
+    const clear = document.createElement('button'); clear.type = 'button'; clear.className = 'link'; clear.textContent = 'Clear the search';
+    clear.addEventListener('click', () => { $('#nav-search').value = ''; buildNav(); $('#nav-search').focus(); });
+    p.appendChild(clear); nav.appendChild(p);
+  }
   ['Play','Drill'].forEach(kind => {
     const list = entries.filter(e => e.play.kind === kind);
     if (!list.length) return;
@@ -74,6 +83,15 @@ export function togglePop(btn, pop){
   const open = $(pop).hidden; closePops(pop); $(pop).hidden = !open; $(btn).setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 $('#menu').addEventListener('click', () => openDrawer($('#drawer').hidden));
+// search: filter as you type; Escape clears it (a second Escape closes the drawer); Enter opens the only match
+const search = $('#nav-search');
+search.addEventListener('input', buildNav);
+search.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && search.value){ e.preventDefault(); e.stopPropagation(); search.value = ''; buildNav(); }
+  else if (e.key === 'Enter'){ const items = $('#nav').querySelectorAll('.item'); if (items.length === 1){ e.preventDefault(); items[0].click(); } }
+});
+// "/" anywhere outside a text field opens the drawer on the search box
+export function focusSearch(){ openDrawer(true); search.focus(); search.select(); }
 $('#drawer-close').addEventListener('click', () => openDrawer(false));
 $('#scrim').addEventListener('click', () => openDrawer(false));
 $('#info').addEventListener('click', () => togglePop('#info', '#info-pop'));

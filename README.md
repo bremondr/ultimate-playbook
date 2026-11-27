@@ -6,7 +6,7 @@ Use the GitHub Pages site for this repository, or serve this folder locally (`py
 
 ## Watching a play or drill
 
-- **Drills** opens the list of plays and drills.
+- **Drills** opens the list of plays and drills. The search box at its top filters the list as you type: it looks at names, summaries, step titles and tags, and case and accents don't matter. **/** opens it from anywhere, Escape clears it, and Enter opens the only match.
 - Tap the field to play the next step and stop at its end. The play button runs the whole thing.
 - The caption under the field shows the current step's coaching note and throw.
 - ⓘ shows the summary. The options button sets speed, pausing after each step, looping, arrows and defense.
@@ -101,7 +101,7 @@ data → model → render → services (library, storage, share) → UI (player,
 
 - `js/util.js`: small helpers (rounding, ids, `$`, which way the screen is turned). `js/events.js`: the event names and `on`/`emit`; see below.
 - `js/data/`: plain data. `fields.js` (field sizes), `builtins.js` (the hand-timed built-in plays), `angel.js` (the two angel drills, written like drawn drills), `formations.js` (the formations and defenses offered in the editor).
-- `js/model/`: the logic, no drawing. `compile.js` turns a play into timed runs and throws, `motion.js` gives where every player and the disc are at a moment (including marks), `timing.js` times a drawn drill automatically, `drafts.js` (blank drafts and copies for the editor), `throws.js` (throw types and grips), `formation.js` (formations and person defense), `defense.js` (the defenses offered on a formation), `facing.js` (where a defender looks).
+- `js/model/`: the logic, no drawing. `compile.js` turns a play into timed runs and throws, `motion.js` gives where every player and the disc are at a moment (including marks), `timing.js` times a drawn drill automatically, `drafts.js` (blank drafts and copies for the editor), `throws.js` (throw types and grips), `formation.js` (formations and person defense), `defense.js` (the defenses offered on a formation), `facing.js` (where a defender looks), `search.js` (finding drills by words and tags).
 - `js/render/`: SVG drawing. `view.js` (which field is drawn, which way it is turned, and whether the player or the editor has it), `svg.js` (field-to-screen mapping), `pitch.js` (the field), `pieces.js` (players, cones, throws, fakes, the disc), `thumb.js` (formation and defense previews).
 - Services: `js/library.js` (built-in, saved and team drills; the built-in list is put together the first time it is needed), `js/storage.js` (saving in this browser, or the shared team store when the page runs as a Claude artifact), `js/share.js` (links with the drill packed in).
 - `js/player.js` (playback), `js/nav.js` (drill list, popovers including Share, new-drill chooser).
