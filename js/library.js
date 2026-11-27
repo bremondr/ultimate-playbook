@@ -44,3 +44,8 @@ export let plans = [];
 export function setPlans(list){ plans = list; }
 export function savePlanEntry(entry){ const i = plans.findIndex(x => x.id === entry.id); if (i >= 0) plans[i] = entry; else plans.push(entry); }
 export function dropPlanEntry(id){ plans = plans.filter(x => x.id !== id); }
+
+/* Practice plans from team repos (js/features/team.js), [{id: 'team:<repo>:<id>', itemId, repo, label, canWrite, plan}],
+   with their drill references as library ids already. Read-only here. */
+export let repoPlans = [];
+export function setRepoPlans(list){ repoPlans = list; }

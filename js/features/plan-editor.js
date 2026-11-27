@@ -12,12 +12,16 @@ import { errText, removePlan, savePlan, storeMode } from '../storage.js';
 import { $, clone, newDocId } from '../util.js';
 
 let id = null, plan = null, dirty = false, undo = [], after = null, closeArmed = null, delArmed = null;
+/* where Save and Delete go: this browser or the team store (storage.js) by default; a team plan (#53) passes its own
+   {save(plan) → {ok, message, id}, remove() → true/false, where: 'Sunset'} */
+let target = null;
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const say = t => { $('#plan-status').textContent = t; };
 
 /* open the editor on a plan (id null for a new one); `then` runs when it closes (back to stepping through, say) */
-export function editPlan(planId, p, then = null){
-  id = planId; plan = clone(p); dirty = !planId; undo = []; after = then;
+export function editPlan(planId, p, then = null, saveTo = null){
+  id = planId; plan = clone(p); dirty = !planId; undo = []; after = then; target = saveTo;
+  $('#plan-edit-h').textContent = target ? `${target.where} practice plan` : 'Practice plan';
   armClose(false); armDelete(false); say('');
   $('#plan-name').value = plan.name; $('#plan-note').value = plan.note || '';
   $('#plan-delete').hidden = !id;
@@ -149,8 +153,14 @@ $('#plan-undo').addEventListener('click', () => {
 async function save(){
   // a name or note still being typed counts
   plan.name = $('#plan-name').value.trim() || 'Untitled plan'; plan.note = $('#plan-note').value;
-  $('#plan-save').disabled = true; say('Saving…');
+  $('#plan-save').disabled = true; say(target ? `Publishing to ${target.where}…` : 'Saving…');
   try {
+    if (target){
+      const r = await target.save(plan);
+      if (!r.ok){ say(r.message); return; }
+      dirty = false; say(`Published to ${target.where}.`);
+      return;
+    }
     const newId = id || newDocId();
     const saved = await savePlan(newId, id ? plan : {...plan, createdAt: Date.now()});
     id = newId; plan = {...plan, createdAt: saved.plan.createdAt};
@@ -178,7 +188,8 @@ $('#plan-edit-close').addEventListener('click', close);
 
 function armDelete(on){
   clearTimeout(delArmed); delArmed = null;
-  $('#plan-delete').textContent = on ? 'Tap again to delete this plan' : 'Delete this plan';
+  $('#plan-delete').textContent = target ? (on ? `Tap again to remove it from ${target.where}` : `Remove from ${target.where}`)
+    : on ? 'Tap again to delete this plan' : 'Delete this plan';
   if (on) delArmed = setTimeout(() => armDelete(false), 4000);
 }
 $('#plan-delete').addEventListener('click', async () => {
@@ -186,8 +197,11 @@ $('#plan-delete').addEventListener('click', async () => {
   if (!delArmed){ armDelete(true); return; }
   armDelete(false);
   try {
-    await removePlan(id);
-    if (storeMode === 'local'){ dropPlanEntry(id); emit('plans-changed'); }
+    if (target){ if (!(await target.remove())){ say('Not removed: it was changed on GitHub meanwhile.'); return; } }
+    else {
+      await removePlan(id);
+      if (storeMode === 'local'){ dropPlanEntry(id); emit('plans-changed'); }
+    }
     after = null; dirty = false; $('#plan-edit').hidden = true;
   } catch (err){ say(errText(err)); }
 });

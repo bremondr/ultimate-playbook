@@ -547,11 +547,11 @@ def team_repo_flow(r, base):
     r.wait("document.querySelector('#team-lines').textContent.includes('Sunset: 2 drills')")
     r.check(p.evaluate('location.hash') == '', 'the team link is taken out of the address')
     r.check(r.visible('#drawer'), 'the list opens after following a team')
-    r.check(p.locator('#nav .tag.team').all_text_contents() == ['Sunset', 'Sunset'], 'team drills tagged with the team')
+    r.check(p.locator('#nav .group:not(.plans) .tag.team').all_text_contents() == ['Sunset', 'Sunset'], 'team drills tagged with the team')
     r.snap('followed')
     # a saved drill of my own, then a token for Sunset (both kept in this browser, so they survive the reload)
     p.evaluate(MY_DRILL, SUNSET)
-    p.reload(); r.wait("document.querySelectorAll('#nav .tag.team').length === 2")
+    p.reload(); r.wait("document.querySelectorAll('#nav .group:not(.plans) .tag.team').length === 2")
     r.click('#opts'); r.click('#opts-teams')
     row = f'.gs-source[data-repo="{SUNSET}"]'
     r.click(f'{row} [data-gs-token]'); p.fill(f'{row} .gs-input', FAKE_TOKEN); r.click(f'{row} .gs-primary')
@@ -563,7 +563,7 @@ def team_repo_flow(r, base):
     p.fill('#team-note', 'First version'); r.click('#team-publish-go')
     r.wait("document.querySelector('#team-share-status').textContent === 'Published to Sunset.'")
     r.check(p.evaluate("repo => window.PLAYBOOK_FAKE_GITHUB.commits(repo)[0].message", SUNSET) == 'First version', 'the note is the commit message')
-    r.check(p.locator('#nav .tag.team').count() == 3, 'the published drill is in the list at once')
+    r.check(p.locator('#nav .group:not(.plans) .tag.team').count() == 3, 'the published drill is in the list at once')
     p.evaluate(EDIT_ON_GITHUB, SUNSET)
     r.click('#team-publish-go'); p.wait_for_selector('.gs-choices', timeout=10000)
     r.snap('conflict')
@@ -571,15 +571,66 @@ def team_repo_flow(r, base):
     r.wait("document.querySelector('#team-share-status').textContent === 'Published to Sunset.'")
     r.check(p.evaluate("repo => window.PLAYBOOK_FAKE_GITHUB.file(repo, 'drills/c1mine.json').name", SUNSET) == 'Hex cuts', 'overwrite with mine')
     # the team drill: read-only, its history, then removed
-    r.click('#share'); r.click('#menu'); r.click('#nav .item:has(.tag.team):has-text("Hex cuts")')
+    r.click('#share'); r.click('#menu'); r.click('#nav .group:not(.plans) .item:has(.tag.team):has-text("Hex cuts")')
     r.wait("document.querySelector('#pkind').textContent === 'Drill · Sunset'")   # a team drill says its team
     r.click('#share'); r.click('#team-history'); p.wait_for_selector('.gs-version >> nth=2', timeout=10000)
     r.check(p.locator('.gs-version strong').count() == 3, 'three versions in the history')
     r.snap('history')
     p.keyboard.press('Escape')
     r.click('#share'); r.click('#team-remove'); r.click('#team-remove')
-    r.wait("document.querySelectorAll('#nav .tag.team').length === 2")
+    r.wait("document.querySelectorAll('#nav .group:not(.plans) .tag.team').length === 2")
     r.check(p.evaluate("repo => window.PLAYBOOK_FAKE_GITHUB.file(repo, 'drills/c1mine.json')", SUNSET) is None, 'removed from the team')
+
+
+def team_plans_flow(r, base):
+    """Practice plans in team repos (issue #53): a team's plan in the list, publishing a local plan with my own drill, editing it there."""
+    p = r.page
+    p.goto(base + '?fakegithub#team=sunset')
+    r.wait("document.querySelector('#team-lines').textContent.includes('Sunset: 2 drills')")
+    r.wait("[...document.querySelectorAll('#nav .plans .item')].some(i => i.textContent.includes('Sunset Tuesday'))")
+    r.check(p.locator('#nav .plans .item:has-text("Sunset Tuesday") .tag.team').count() == 1, 'the team plan is tagged with the team')
+    p.click('#nav .plans .item:has-text("Sunset Tuesday")')
+    r.check(r.visible('#plan-run') and not r.visible('#plan-run-edit') and r.visible('#plan-run-history'), 'a team plan: no Edit without a token, History')
+    r.click('#plan-next'); r.check(r.text('#plan-now h3') == 'Angel drill, Sunset style', f'the team drill is found: {r.text("#plan-now h3")}')
+    p.click('#plan-now .primary'); r.wait("document.querySelector('#pkind').textContent.includes('Sunset')")
+    r.click('#plan-bar-back'); p.keyboard.press('Escape')
+    # my own saved drill, a local plan using it, and a token for Sunset
+    p.evaluate(MY_DRILL, SUNSET)
+    p.evaluate("""() => localStorage.setItem('ub-plans', JSON.stringify({pl1: {name: 'Hex day', note: '', createdAt: 2, updatedAt: 2, items: [
+      {kind: 'block', title: 'Warm-up', minutes: 10, note: ''}, {kind: 'drill', drill: 'c1mine', name: 'Hex cuts', minutes: 20, note: ''}]}}))""")
+    p.reload(); r.wait("document.querySelectorAll('#nav .plans .item').length === 2")
+    r.click('#menu'); p.click('#nav .plans .item:has-text("Hex day")')
+    r.check(r.visible('#plan-run-publish'), 'Publish to team on a local plan, also before there is a token')
+    r.click('#plan-run-publish')
+    r.check(not r.visible('#plan-publish-go') and 'needs a token' in r.text('#plan-publish-what'), f'no token yet: says how: {r.text("#plan-publish-what")}')
+    r.snap('plan-publish-no-token')
+    p.click('#plan-publish-token button')
+    row = f'.gs-source[data-repo="{SUNSET}"]'
+    p.fill(f'{row} .gs-input', FAKE_TOKEN); r.click(f'{row} .gs-primary')
+    r.wait("document.querySelector('.gs-done') && document.querySelector('.gs-done').textContent.includes('you can edit')")
+    p.keyboard.press('Escape')
+    r.check(r.visible('#plan-publish') and not r.visible('.gs'), 'Escape closes the Teams panel, the publish dialog stays')
+    r.wait("!document.querySelector('#plan-publish-go').hidden"); r.check('1 drill saved only on this device' in r.text('#plan-publish-what'), f'says my drill goes along: {r.text("#plan-publish-what")}')
+    r.snap('plan-publish')
+    p.fill('#plan-publish-note', 'Hex day plan'); r.click('#plan-publish-go')
+    r.wait("document.querySelector('#plan-publish-status').textContent.startsWith('Published to Sunset')")
+    plan_path = p.evaluate("repo => window.PLAYBOOK_FAKE_GITHUB.commits(repo).find(c => c.message === 'Hex day plan').paths[0]", SUNSET)
+    files = p.evaluate("([repo, path]) => { const f = window.PLAYBOOK_FAKE_GITHUB; return [f.file(repo, 'drills/c1mine.json'), f.file(repo, path)]; }", [SUNSET, plan_path])
+    r.check(bool(files[0]) and bool(files[1]), 'the drill and the plan are in the team repo')
+    r.check(files[1] and files[1]['items'][1]['drill'] == 'here:c1mine', 'the plan points at the drill in the same repo')
+    # edit the team plan, then its history
+    p.keyboard.press('Escape'); p.keyboard.press('Escape')
+    r.click('#menu'); r.wait("[...document.querySelectorAll('#nav .plans .item')].filter(i => i.textContent.includes('Hex day')).length === 2")
+    p.click('#nav .plans .item:has(.tag.team):has-text("Hex day")')
+    r.check(r.visible('#plan-run-edit') and not r.visible('#plan-run-publish'), 'a team plan with a token: Edit, no Publish')
+    r.click('#plan-run-edit'); r.check(r.text('#plan-edit-h') == 'Sunset practice plan', f'editing on the team: {r.text("#plan-edit-h")}')
+    p.fill('#plan-name', 'Hex day (team)'); p.press('#plan-name', 'Tab')
+    r.click('#plan-save'); r.wait("document.querySelector('#plan-status').textContent === 'Published to Sunset.'")
+    r.check(p.evaluate("([repo, path]) => window.PLAYBOOK_FAKE_GITHUB.file(repo, path).name", [SUNSET, plan_path]) == 'Hex day (team)', 'saved to the team repo')
+    r.click('#plan-edit-close')
+    r.click('#plan-run-history'); p.wait_for_selector('.gs-version >> nth=1', timeout=10000)
+    r.check(p.locator('.gs-version strong').count() == 2, 'two versions in the history')
+    r.snap('plan-history')
 
 
 def model_dump(page, base):
@@ -635,6 +686,11 @@ def main():
 
             r = page_for('team-repos', VIEWPORTS['ipad'])
             try: team_repo_flow(r, base)
+            except Exception as e: r.failures.append(f'{r.name}: stopped: {e}')
+            failures += r.failures; r.page.context.close()
+
+            r = page_for('team-plans', VIEWPORTS['ipad'])
+            try: team_plans_flow(r, base)
             except Exception as e: r.failures.append(f'{r.name}: stopped: {e}')
             failures += r.failures; r.page.context.close()
 
