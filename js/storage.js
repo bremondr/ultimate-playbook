@@ -2,10 +2,11 @@
 import { fieldOf } from './data/fields.js';
 import { defenseOf, FORMATIONS } from './data/formations.js';
 import { emit } from './events.js';
-import { setTeam, team } from './library.js';
+import { setPlans, setTeam, team } from './library.js';
 import { FACES } from './model/facing.js';
 import { MAX_LABEL } from './model/labels.js';
 import { cleanTags } from './model/tags.js';
+import { readPlan, serializePlan } from './model/plans.js';
 import { FORCES } from './model/formation.js';
 import { curveOf, GRIPS, THROW_TYPES, typeOf } from './model/throws.js';
 import { timeDraft } from './model/timing.js';
@@ -115,6 +116,29 @@ export async function removeDrill(id){
   if (storeMode === 'db') return dbApi.collection('drills').doc(id).delete();
   const all = localRead(); delete all[id]; localWrite(all);
 }
+/* Practice plans: stored next to the drills, in this browser ('ub-plans') or in the team store's 'plans' collection.
+   Each is checked by readPlan when it's loaded, as drills are by readRaw. */
+const PLANS_KEY = 'ub-plans';
+const planEntry = (id, data) => { const plan = readPlan(data); return plan ? {id, plan} : null; };
+function localPlans(){ try { const o = JSON.parse(localStorage.getItem(PLANS_KEY) || '{}'); return o && typeof o === 'object' ? o : {}; } catch(e){ return {}; } }
+export async function savePlan(id, plan){
+  const body = {...serializePlan(plan), createdAt: plan.createdAt || Date.now(), updatedAt: Date.now()};
+  if (storeMode === 'db') await dbApi.collection('plans').doc(id).set(body);
+  else { const all = localPlans(); all[id] = body; try { localStorage.setItem(PLANS_KEY, JSON.stringify(all)); } catch(e){ throw {code:'local'}; } }
+  return {id, plan: readPlan(body)};
+}
+export async function removePlan(id){
+  if (storeMode === 'db') return dbApi.collection('plans').doc(id).delete();
+  const all = localPlans(); delete all[id]; try { localStorage.setItem(PLANS_KEY, JSON.stringify(all)); } catch(e){}
+}
+const byCreated = (a, b) => (a.plan.createdAt || 0) - (b.plan.createdAt || 0);
+function loadLocalPlans(){ setPlans(Object.entries(localPlans()).map(([id, b]) => planEntry(id, b)).filter(Boolean).sort(byCreated)); emit('plans-changed'); }
+function watchDbPlans(db){
+  db.collection('plans').orderBy('createdAt').onSnapshot(snap => {
+    setPlans(snap.docs.map(d => planEntry(d.id, d.data())).filter(Boolean)); emit('plans-changed');
+  }, () => {});
+}
+
 // the status line under the drill list belongs to the store
 function setSync(t){ $('#sync').textContent = t; }
 function localMode(){
@@ -122,6 +146,7 @@ function localMode(){
   const all = localRead();
   setTeam(Object.entries(all).map(([id, b]) => entryFrom(id, b)).filter(Boolean).sort((a, b) => a.raw.createdAt - b.raw.createdAt));
   setSync('Drills you draw are saved in this browser only.');
+  loadLocalPlans();
   emit('store-loaded');
 }
 export async function initStore(){
@@ -133,6 +158,7 @@ export async function initStore(){
   if (user){ try { const v = await user.can('data.write'); if (v === false) canWrite = false; else if (v === true) canWrite = true; } catch(e){} }
   if (!db){ localMode(); emit('access-changed'); return; }
   dbApi = db; storeMode = 'db'; emit('access-changed');
+  watchDbPlans(db);
   let timer = setTimeout(() => setSync('Can’t reach the saved team drills yet.'), 10000);
   db.collection('drills').orderBy('createdAt').onSnapshot(snap => {
     if (!snap.metadata.fromCache && timer){ clearTimeout(timer); timer = null; }
