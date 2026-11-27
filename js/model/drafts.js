@@ -28,7 +28,9 @@ export function blankDraft(){
 // new drills: blank, or a copy of any built-in or saved drill (a library entry)
 export function copyOfEntry(e){
   if (e.raw) return {...clone(e.raw), id:null, docId:null, createdAt:undefined, name:(e.raw.name || 'Untitled drill') + ' (copy)'};
-  return copyOfBuiltin(e.play);
+  // a built-in's tags come with its library entry (library.js), not with its play
+  const copy = copyOfBuiltin(e.play);
+  return e.tags && e.tags.length ? {...copy, tags: e.tags.slice()} : copy;
 }
 // a saved drill, to edit in place
 export const draftOfSaved = e => ({...clone(e.raw), id:e.id, docId:e.id});

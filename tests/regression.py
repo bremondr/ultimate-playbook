@@ -3,7 +3,7 @@
 
 Serves the folder with `python3 -m http.server`, opens it in headless Chrome (Python Playwright) and checks:
   1. no page errors and no console errors;
-  2. the main player and editor flows (with drawing throws, arrows per step, new discs, and Send feedback), on an iPad-sized and a phone-sized screen;
+  2. the main player and editor flows (with drawing throws, tags, arrows per step, new discs, and Send feedback), on an iPad-sized and a phone-sized screen;
   3. the saved-drills path through a mocked `window.claude` team store (as when the page runs as a Claude artifact),
      and team repos (js/features/team.js) against the GitHub in memory that ?fakegithub plugs in: following a team
      from its link, its drills in the list, a token, Publish to team, a conflict, history and Remove from team;
@@ -426,6 +426,30 @@ def arrows_flow(r, base):
     r.check(p.evaluate(runs) > 0, 'other steps keep their arrows')
 
 
+def tags_flow(r, base):
+    """Tags on drills (issue #54): a copy keeps the built-in's tags; add and remove one; filter the drill list by it."""
+    p = r.page
+    tags = "[...document.querySelectorAll('#e-tags .tagchip')].map(e => e.firstChild.textContent.trim())"
+    p.goto(base + '#box'); r.wait("document.querySelector('#pname').textContent === 'Box drill'")
+    r.click('#act'); r.tab('drill')
+    r.check(p.evaluate(tags) == ['throwing', 'cutting', 'continuity'], f'the copy keeps the built-in tags: {p.evaluate(tags)}')
+    p.fill('#e-tag-new', 'Beginners'); p.press('#e-tag-new', 'Enter')
+    p.click('#e-tags .tagchip:nth-child(3) .tagx')
+    r.check(p.evaluate(tags) == ['throwing', 'cutting', 'beginners'], f'add and remove a tag: {p.evaluate(tags)}')
+    r.snap('tags-editor')
+    r.fold(); r.click('#s-save'); r.wait("document.querySelector('#s-state').textContent.startsWith('Saved')")
+    r.click('#s-close'); r.wait("document.querySelector('#studio').hidden")
+    r.click('#menu')
+    r.check(p.locator('#nav-tags .tagchip').count() > 3, 'the tags in use are offered as filters')
+    p.click('#nav-tags .tagchip:text-is("beginners")')
+    names = p.locator('#nav .item b').all_text_contents()
+    r.check(len(names) == 1 and names[0].startswith('Box drill (copy)'), f'filter by a tag: {names}')
+    r.snap('tags-filter')
+    p.reload(); r.wait("document.querySelector('#pname').textContent !== '—'"); r.click('#menu')
+    r.check(p.locator('#nav .item').count() == 1, 'the tag filter is remembered')
+    p.click('#nav-tags .link'); r.check(p.locator('#nav .item').count() > 1, 'Clear shows every drill again')
+
+
 def team_flow(r, base, can_write):
     p = r.page
     p.goto(base); r.wait("document.querySelector('#sync').textContent.startsWith('No team drills')")
@@ -532,7 +556,7 @@ def main():
                 return Run(page, name, trace, args.shots)
 
             for vp, size in VIEWPORTS.items():
-                for flow in (player_flow, editor_flow, throw_flow, arrows_flow, new_disc_flow):
+                for flow in (player_flow, editor_flow, throw_flow, arrows_flow, new_disc_flow, tags_flow):
                     r = page_for(f'{flow.__name__[:-5]}-{vp}', size)
                     try: flow(r, base)
                     except Exception as e: r.failures.append(f'{r.name}: stopped: {e}')

@@ -107,3 +107,15 @@ export const PLAYS = [
   ]
 }
 ];
+
+/* Tags of the built-in plays and drills (model/tags.js). Kept apart from the play data above, so the model output of
+   the built-ins (tests/baseline.json) doesn't change when tags do. */
+export const BUILTIN_TAGS = {
+  'vert-stack': ['offense', 'vertical stack', 'cutting'],
+  'ho-stack': ['offense', 'horizontal stack', 'cutting'],
+  'dump-swing': ['offense', 'handlers', 'reset'],
+  'go-to': ['throwing', 'cutting', 'warm-up'],
+  'box': ['throwing', 'cutting', 'continuity'],
+  'angel': ['throwing', 'cutting', 'two lines'],
+  'angel-cutback': ['throwing', 'cutting', 'two lines', 'fakes']
+};

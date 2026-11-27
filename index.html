@@ -164,6 +164,7 @@
       <ul class="list" id="new-from"></ul>
     </div>
     <div class="navsearch"><input type="search" id="nav-search" placeholder="Search drills" aria-label="Search drills" autocomplete="off" spellcheck="false"></div>
+    <div class="tagfilter" id="nav-tags" role="group" aria-label="Show drills with these tags" hidden></div>
     <nav class="groups" id="nav" aria-label="Plays and drills"></nav>
     <p class="sync" id="sync"></p>
     <!-- feature: team repos (js/features/team.js): when each team was last checked, or why it couldn't be loaded -->
@@ -331,6 +332,10 @@
         <div class="stack">
           <div class="tb"><span>Type</span><div class="seg full" id="e-kind" role="group" aria-label="Type"><button data-k="Drill">Drill</button><button data-k="Play">Play</button></div></div>
           <label class="tb"><span>Summary</span><textarea id="e-sum" rows="3" maxlength="400" placeholder="What it trains, how many players, setup"></textarea></label>
+          <div class="tb"><span>Tags</span>
+            <div class="tagedit"><span id="e-tags"></span><input id="e-tag-new" list="e-tag-list" maxlength="24" autocomplete="off" placeholder="Add a tag" aria-label="Add a tag"></div>
+            <datalist id="e-tag-list"></datalist>
+            <span class="small">For finding drills: cutting, handlers, zone, beginners… Up to 8.</span></div>
           <div class="pair">
             <div class="tb"><span>Players per side</span><div class="seg full" id="e-format" role="group" aria-label="Players per side"><button data-f="7">7 v 7</button><button data-f="5">5 v 5</button></div></div>
             <div class="tb"><span>Field</span><div class="seg full" id="e-field" role="group" aria-label="Field size"><button data-fd="full" title="100 × 37 m">Full</button><button data-fd="small" title="75 × 25 m">Small</button></div></div>

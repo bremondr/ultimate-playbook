@@ -3,21 +3,45 @@ import { dirty, draft, endSession } from './editor/session.js';
 import { emit } from './events.js';
 import { libEntries, team } from './library.js';
 import { blankDraft, copyOfEntry } from './model/drafts.js';
-import { matchesQuery } from './model/search.js';
+import { matchesQuery, matchesTags } from './model/search.js';
+import { tagsInUse } from './model/tags.js';
 import { current, model, select, sharedRaw } from './player.js';
 import { builtinLink, drillLink } from './share.js';
 import { canWrite, storeMode } from './storage.js';
 import { $ } from './util.js';
 
+/* tags: the drill list shows only drills with every tag picked (remembered in this browser) */
+const withTags = e => e.tags ? {...e.play, tags: e.tags} : e.play;
+let picked = (() => { try { const v = JSON.parse(localStorage.getItem('ub-nav-tags') || '[]'); return Array.isArray(v) ? v.filter(t => typeof t === 'string') : []; } catch (err){ return []; } })();
+function setPicked(list){ picked = list; try { localStorage.setItem('ub-nav-tags', JSON.stringify(picked)); } catch (err){} }
+function renderTagFilter(all){
+  const box = $('#nav-tags'), tags = tagsInUse(all.map(e => e.tags));
+  // a tag nobody has any more is let go, once the saved drills have loaded (before that, they just aren't there yet)
+  if (storeMode !== 'pending' && picked.some(t => !tags.includes(t))) setPicked(picked.filter(t => tags.includes(t)));
+  picked.filter(t => !tags.includes(t)).forEach(t => tags.push(t));   // still shown, so it can be cleared
+  box.replaceChildren(); box.hidden = !tags.length;
+  tags.forEach(t => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'tagchip'; b.textContent = t;
+    b.setAttribute('aria-pressed', picked.includes(t) ? 'true' : 'false');
+    b.addEventListener('click', () => { setPicked(picked.includes(t) ? picked.filter(x => x !== t) : [...picked, t]); buildNav(); });
+    box.appendChild(b);
+  });
+  if (picked.length){
+    const c = document.createElement('button'); c.type = 'button'; c.className = 'link'; c.textContent = 'Clear';
+    c.addEventListener('click', () => { setPicked([]); buildNav(); }); box.appendChild(c);
+  }
+}
+
 /* the drill list, filtered by the search box (all words, any order; case and accents don't matter) */
 export function buildNav(){
   const nav = $('#nav'); nav.replaceChildren();
-  const query = $('#nav-search').value;
-  const entries = libEntries().filter(e => matchesQuery(e.play, query));
-  if (!entries.length && query.trim()){
+  const query = $('#nav-search').value, all = libEntries();
+  renderTagFilter(all);
+  const entries = all.filter(e => matchesQuery(withTags(e), query) && matchesTags(withTags(e), picked));
+  if (!entries.length && (query.trim() || picked.length)){
     const p = document.createElement('p'); p.className = 'small navnone'; p.textContent = 'No drills match. ';
-    const clear = document.createElement('button'); clear.type = 'button'; clear.className = 'link'; clear.textContent = 'Clear the search';
-    clear.addEventListener('click', () => { $('#nav-search').value = ''; buildNav(); $('#nav-search').focus(); });
+    const clear = document.createElement('button'); clear.type = 'button'; clear.className = 'link'; clear.textContent = 'Clear the search and tags';
+    clear.addEventListener('click', () => { $('#nav-search').value = ''; setPicked([]); buildNav(); $('#nav-search').focus(); });
     p.appendChild(clear); nav.appendChild(p);
   }
   ['Play','Drill'].forEach(kind => {
@@ -37,6 +61,7 @@ export function buildNav(){
       }
       const sm = document.createElement('small'); sm.textContent = `${p.steps.length} step${p.steps.length>1?'s':''} · ${throws} throw${throws===1?'':'s'} · ${total.toFixed(0)} s`;
       b.append(nm, sm);
+      if (e.tags && e.tags.length){ const tg = document.createElement('small'); tg.className = 'itags'; tg.textContent = e.tags.join(' · '); b.appendChild(tg); }
       b.setAttribute('aria-current', current && current.id === e.id && current.source !== 'preview' ? 'true' : 'false');
       b.addEventListener('click', () => {
         // previewing a drill being drawn: keep unsaved work, otherwise let the draft go

@@ -10,6 +10,7 @@ import { fieldOf } from '../data/fields.js';
 import { defenseOf, DEFENSES, FORMATIONS } from '../data/formations.js';
 import { libEntries } from '../library.js';
 import { copyOfEntry } from '../model/drafts.js';
+import { cleanTags, MAX_TAGS, normTag, tagsInUse } from '../model/tags.js';
 import { placeDefense, standAt } from '../model/defense.js';
 import { formation, formationSummary } from '../model/formation.js';
 import { formationThumb, playersThumb } from '../render/thumb.js';
@@ -21,7 +22,7 @@ export function fillDetails(){
   const press = (sel_, attr, v) => document.querySelectorAll(sel_ + ' button').forEach(b => b.setAttribute('aria-pressed', b.dataset[attr] === String(v) ? 'true' : 'false'));
   press('#e-kind', 'k', draft.kind); press('#e-format', 'f', draft.format); press('#e-field', 'fd', draft.field);
   if (defenseOf(draft.defense)) defChoice = draft.defense;
-  renderForms(); fillFromSelect();
+  renderForms(); fillFromSelect(); renderTags();
   $('#e-delete').hidden = !draft.docId;
 }
 // the defense picked in the Drill tab: tapping a formation places it with this defense
@@ -143,3 +144,36 @@ $('#e-from').addEventListener('change', e => {
   hint(`Copied everything from ${entry.play.name}. Undo brings back what you had.`);
   e.target.value = '';
 });
+
+/* tags (model/tags.js): chips with × to remove, and a field that adds one on Enter, comma or picking a suggestion */
+function renderTags(){
+  const box = $('#e-tags'); box.replaceChildren();
+  (draft.tags || []).forEach(t => {
+    const chip = document.createElement('span'); chip.className = 'tagchip on';
+    chip.append(t + ' ');
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'tagx'; x.textContent = '×'; x.setAttribute('aria-label', `Remove the tag ${t}`);
+    x.addEventListener('click', () => setTags((draft.tags || []).filter(v => v !== t)));
+    chip.appendChild(x); box.appendChild(chip);
+  });
+  const list = $('#e-tag-list'); list.replaceChildren();
+  tagsInUse(libEntries().map(e => e.tags)).filter(t => !(draft.tags || []).includes(t)).forEach(t => list.appendChild(new Option(t)));
+  $('#e-tag-new').disabled = (draft.tags || []).length >= MAX_TAGS;
+  $('#e-tag-new').placeholder = (draft.tags || []).length >= MAX_TAGS ? `Up to ${MAX_TAGS} tags` : 'Add a tag';
+}
+function setTags(list){
+  const before = JSON.stringify(draft), next = cleanTags(list);
+  if (next.length) draft.tags = next; else delete draft.tags;
+  if (JSON.stringify(draft) !== before) commit(before);
+  renderTags();
+}
+function addTypedTag(){
+  const inp = $('#e-tag-new'), v = normTag(inp.value);
+  inp.value = '';
+  if (v) setTags([...(draft.tags || []), v]);
+}
+$('#e-tag-new').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ','){ e.preventDefault(); addTypedTag(); }
+  else if (e.key === 'Backspace' && !e.target.value && (draft.tags || []).length) setTags(draft.tags.slice(0, -1));
+});
+// picking a suggestion from the list, or leaving the field with something typed
+$('#e-tag-new').addEventListener('change', addTypedTag);
