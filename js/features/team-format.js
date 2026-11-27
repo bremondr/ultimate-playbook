@@ -6,6 +6,7 @@
    - reading a file: the type check, then readRaw, the same check shared links and backups get;
    - the commit messages, the team names in links (#team=sunset), and the team's label in the drill list.
    The DOM side (the list, the buttons, the panel) is js/features/team.js. Plain Node can test this file. */
+import { readPlan, serializePlan } from '../model/plans.js';
 import { readRaw, serialize } from '../storage.js';
 
 export const FILE_TYPE = 'ultimate-playbook-drill';
@@ -60,4 +61,46 @@ export function teamStoreOptions(extra = {}){
     id: d => d && d.id, name: d => d && d.name, setId: (d, id) => ({...d, id}),
     commitMessage, ...extra
   };
+}
+
+/* ---------- practice plans in a team repo (#53): plans/<id>.json, next to the drills ----------
+   {type: 'ultimate-playbook-plan', version: 1, id, …serializePlan(plan), createdAt, updatedAt}. In the file, a plan's
+   drills from the same team are "here:<drill id>" (the file doesn't depend on the repo's name); built-in drills are
+   their names. Plans may only use the team's own drills and built-ins, so the team sees every drill a plan uses. */
+export const PLAN_TYPE = 'ultimate-playbook-plan';
+
+export function readTeamPlan(json){
+  if (!json || typeof json !== 'object' || json.type !== PLAN_TYPE) return null;
+  if (typeof json.version !== 'number' || json.version > 1) return null;
+  const plan = readPlan(json);
+  if (!plan) return null;
+  return {...plan, id: typeof json.id === 'string' && ID.test(json.id) ? json.id : null, createdAt: time(json.createdAt), updatedAt: time(json.updatedAt)};
+}
+export function writeTeamPlan(plan){
+  return {type: PLAN_TYPE, version: 1, id: plan.id, ...serializePlan(plan), createdAt: time(plan.createdAt), updatedAt: time(plan.updatedAt)};
+}
+/** The options for the second store, on the same repos, tokens and followed teams as the drills (the same `app`). */
+export function planStoreOptions(extra = {}){
+  return {...teamStoreOptions(extra), folder: 'plans', read: readTeamPlan, write: writeTeamPlan,
+    commitMessage: m => commitMessage({...m, name: m.name || 'a practice plan'})};
+}
+
+/** A team plan as read → its drill references as library ids: here:<id> → team:<repo>:<id>. */
+export function planRefsIn(plan, repo){
+  return {...plan, items: plan.items.map(it => it.kind === 'drill' && it.drill.startsWith('here:') ? {...it, drill: `team:${repo}:${it.drill.slice(5)}`} : it)};
+}
+/** A plan about to be written to `repo`: library ids of that team's drills → here:<id>. `isBuiltin(id)` says which
+    names are built-in drills. Returns {plan, saved: [ids saved only on this device], other: [ids from other teams]}:
+    the caller publishes `saved` too, and refuses while `other` isn't empty. Missing drills stay as they are. */
+export function planRefsOut(plan, repo, {isBuiltin, isSaved}){
+  const saved = [], other = [], own = `team:${repo}:`;
+  const items = plan.items.map(it => {
+    if (it.kind !== 'drill') return it;
+    if (it.drill.startsWith(own)) return {...it, drill: 'here:' + it.drill.slice(own.length)};
+    if (it.drill.startsWith('here:') || isBuiltin(it.drill)) return it;
+    if (it.drill.startsWith('team:')){ other.push(it.drill); return it; }
+    if (isSaved(it.drill)){ if (!saved.includes(it.drill)) saved.push(it.drill); return {...it, drill: 'here:' + it.drill}; }
+    return it;
+  });
+  return {plan: {...plan, items}, saved, other};
 }

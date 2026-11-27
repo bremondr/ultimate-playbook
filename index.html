@@ -213,6 +213,9 @@
       <button class="primary" id="plan-run-save" type="button" hidden>Save to my plans</button>
       <button class="ghost" id="plan-run-edit" type="button">Edit</button>
       <button class="ghost" id="plan-run-share" type="button">Share</button>
+      <!-- team repos (#53): publish a plan to a team, or a team plan's history and removal -->
+      <button class="ghost" id="plan-run-publish" type="button" hidden>Publish to team…</button>
+      <button class="ghost" id="plan-run-history" type="button" hidden>History</button>
       <button class="ghost" id="plan-run-print" type="button">Print</button>
       <button class="ibtn" id="plan-run-close" type="button" aria-label="Close the plan">×</button>
     </header>
@@ -270,6 +273,16 @@
     <p class="small" id="plan-share-status" role="status"></p>
     <div class="qrbox plan-qr" id="plan-share-qr" hidden></div>
     <p class="small" id="plan-share-qr-note" hidden>This plan is too long for a QR code. Send the link instead.</p>
+  </div>
+</div>
+<div class="planview narrow" id="plan-publish" role="dialog" aria-modal="true" aria-labelledby="plan-publish-h" hidden>
+  <div class="plan-card">
+    <h2 id="plan-publish-h">Publish to a team</h2>
+    <p class="small" id="plan-publish-what"></p>
+    <label class="tb" id="plan-publish-team-l"><span>Team</span><select id="plan-publish-team"></select></label>
+    <input id="plan-publish-note" maxlength="200" autocomplete="off" placeholder="Note for the history (optional)" aria-label="Note for the team's history (optional)" class="sharelink">
+    <div class="btnrow"><button class="primary" id="plan-publish-go" type="button">Publish</button><button class="ghost" id="plan-publish-close" type="button">Cancel</button></div>
+    <p class="small" id="plan-publish-status" role="status"></p>
   </div>
 </div>
 <section class="planprint" id="plan-print" aria-hidden="true"></section>

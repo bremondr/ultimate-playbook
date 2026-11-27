@@ -11,7 +11,7 @@
    Trying it without GitHub: on a local server or a preview, add ?fakegithub to the address. The teams then come from
    a GitHub in memory (fake-github.js) with two teams, sunset and tuesday, and a token shown in the drawer. */
 import { emit } from '../events.js';
-import { repoDrills, setRepoDrills, team } from '../library.js';
+import { builtins, repoDrills, repoPlans, setRepoDrills, setRepoPlans, team } from '../library.js';
 import { timeDraft } from '../model/timing.js';
 import { closePops, openDrawer } from '../nav.js';
 import { current, showReadOnly } from '../player.js';
@@ -19,8 +19,9 @@ import { appLink } from '../share.js';
 import { $, clone } from '../util.js';
 import { createPanel } from '../vendor/git-store-kit/panel.js';
 import { createGitStore, tokenNeed } from '../vendor/git-store-kit/store.js';
+import { indexedCache } from '../vendor/git-store-kit/cache.js';
 import { hashValue, hashWithout } from '../vendor/git-store-kit/sources.js';
-import { linkName, shortName, teamLabel, teamStoreOptions, writeTeamDrill } from './team-format.js';
+import { linkName, planRefsIn, planRefsOut, planStoreOptions, shortName, teamLabel, teamStoreOptions, writeTeamDrill, writeTeamPlan } from './team-format.js';
 
 const artifact = !!(window.claude && typeof window.claude.use === 'function');
 const preview = !!window.PLAYBOOK_PREVIEW;
@@ -30,6 +31,8 @@ const FAKE_TOKEN = 'github_pat_FAKE_' + 'x'.repeat(30);
 const plural = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 
 let store = null, panel = null, justFollowed = null;
+// practice plans (#53): a second store on the same repos (plans/<id>.json), with the same followed teams and tokens
+let planStore = null, planPanel = null;
 
 /* ---------- start ---------- */
 async function start(){
@@ -44,16 +47,21 @@ async function start(){
   store = createGitStore(teamStoreOptions(extra));
   panel = createPanel(store, {title: preview ? 'Teams (preview)' : 'Teams', noun: 'drill', sourceLabel: 'team'});
   store.subscribe(changed);
+  // the plans' saved copies under their own keys, so the two stores never overwrite each other's cache of a repo
+  const base = extra.cache || indexedCache(), plansCache = {get: k => base.get('plans|' + k), set: (k, v) => base.set('plans|' + k, v), delete: k => base.delete('plans|' + k)};
+  planStore = createGitStore(planStoreOptions({...extra, cache: plansCache}));
+  planPanel = createPanel(planStore, {title: 'Team plans', noun: 'plan', sourceLabel: 'team'});
+  planStore.subscribe(plansChanged);
   followLink();
   addEventListener('hashchange', followLink);
   ['#teams', '#opts-teams', '#share-team'].forEach(s => { $(s).hidden = s === '#share-team'; });
   $('#teams-preview').hidden = $('#team-share-preview').hidden = !preview;
   changed(store.sources());
-  store.load();
+  store.load(); planStore.load();
   // look again when the device comes back online, or the app comes back after a while
-  addEventListener('online', () => store.load());
+  addEventListener('online', () => { store.load(); planStore.load(); });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && store.sources().some(s => Date.now() - s.loadedAt > 10 * 60e3)) store.load();
+    if (document.visibilityState === 'visible' && store.sources().some(s => Date.now() - s.loadedAt > 10 * 60e3)){ store.load(); planStore.load(); }
   });
 }
 
@@ -67,7 +75,7 @@ function followLink(){
   history.replaceState(null, '', location.pathname + location.search + (rest && rest !== '#' ? rest : ''));
   if (!repo) return;
   if (!before.has(repo.toLowerCase())) justFollowed = repo;
-  store.load(repo);
+  store.load(repo); if (planStore) planStore.load(repo);
 }
 
 /* ---------- the team drills in the list ---------- */
@@ -228,6 +236,50 @@ function showHistory(){
   }});
 }
 
+/* ---------- practice plans in team repos (#53) ---------- */
+function plansChanged(sources){
+  const next = [];
+  // a team whose repo has no plans folder yet just has no plans (the drills store reports the team's state)
+  for (const s of sources) for (const i of s.items){
+    next.push({id: `team:${s.repo}:${i.id}`, itemId: i.id, sha: i.sha, repo: s.repo, label: teamLabel(s.repo), canWrite: !!s.canWrite || !!(store && store.sources().find(x => x.repo === s.repo)?.canWrite), plan: planRefsIn(i.item, s.repo)});
+  }
+  next.sort((a, b) => a.label.localeCompare(b.label) || (a.plan.createdAt - b.plan.createdAt) || a.plan.name.localeCompare(b.plan.name));
+  const key = list => JSON.stringify(list.map(e => [e.id, e.sha, e.canWrite]));
+  if (key(next) !== key(repoPlans)){ setRepoPlans(next); emit('plans-changed'); }
+}
+/** The teams this device can publish to, [{repo, label}] (the drills store knows; the token is the same). */
+export const teamsToPublish = () => store ? store.sources().filter(s => s.canWrite).map(s => ({repo: s.repo, label: teamLabel(s.repo)})) : [];
+
+/** Publish a practice plan to a team: its drills saved only on this device go along (as team drills), so the team
+    sees every drill it uses. Drills from another team stop it. `id` keeps a plan's id (a team plan saved again).
+    Resolves to {ok: true, kept} or {ok: false, message}. */
+export async function publishPlan(repo, plan, {id, note = ''} = {}){
+  if (!planStore) return {ok: false, message: 'Team repos aren’t available here.'};
+  const builtinIds = new Set(builtins().map(b => b.id));
+  const out = planRefsOut(plan, repo, {isBuiltin: x => builtinIds.has(x), isSaved: x => team.some(e => e.id === x)});
+  if (out.other.length){
+    const names = out.other.map(x => repoDrills.find(e => e.id === x)?.play.name || x);
+    return {ok: false, message: `This plan uses drills from another team (${names.join(', ')}). A team plan can only use the team’s own drills and built-ins.`};
+  }
+  // the drills saved only here, published first (each keeps its id, so the plan's here:<id> finds it)
+  for (const did of out.saved){
+    const mine = team.find(e => e.id === did), now = Date.now();
+    const r = await panel.save(repo, {...clone(mine.raw), id: did, createdAt: mine.raw.createdAt || now, updatedAt: now}, {note: `Publish ${mine.raw.name || 'a drill'} for a practice plan`});
+    if (!r || r.kept === 'theirs') return {ok: false, message: `${mine.raw.name || 'A drill'} wasn’t published, so the plan wasn’t either.`};
+  }
+  const now = Date.now(), pid = id || ('p' + now.toString(36) + Math.random().toString(36).slice(2, 6));
+  const r = await planPanel.save(repo, {...out.plan, id: pid, createdAt: plan.createdAt || now, updatedAt: now}, {note});
+  if (!r) return {ok: false, message: 'Not published.'};
+  if (r.kept === 'theirs') return {ok: false, message: 'Kept the version that is on GitHub; yours wasn’t published.'};
+  return {ok: true, kept: r.kept, id: `team:${repo}:${pid}`, published: out.saved.length};
+}
+export async function removeTeamPlan(e){
+  const r = await planPanel.remove(e.repo, e.itemId);
+  return !!r && r.kept !== 'theirs';
+}
+export function teamPlanHistory(e, onOpen){
+  planPanel.showHistory(e.repo, e.itemId, {name: e.plan.name, onOpen: ({item, date}) => onOpen(planRefsIn(item, e.repo), date)});
+}
 /* ---------- a GitHub in memory, to try the feature without a real team repo ---------- */
 async function fakeGitHub(){
   const [{createFakeGitHub}, {angelDrill}, {builtins}] = await Promise.all([
@@ -238,7 +290,10 @@ async function fakeGitHub(){
   await fake.addRepo(shortName('sunset'), {files: {
     'drills/sunset-angel.json': file('sunset-angel', {...angelDrill('basic'), name: 'Angel drill, Sunset style'}),
     'drills/sunset-break.json': file('sunset-break', {...angelDrill('break'), name: 'Angel with a fake'}),
-    'drills/README.md': 'Sunset’s drills, one file per drill.'
+    'drills/README.md': 'Sunset’s drills, one file per drill.',
+    'plans/sunset-tuesday.json': writeTeamPlan({id: 'sunset-tuesday', name: 'Sunset Tuesday', note: 'Breaks and resets', createdAt: Date.now() - 864e5, updatedAt: Date.now() - 864e5,
+      items: [{kind: 'block', title: 'Warm-up', minutes: 15, note: ''}, {kind: 'drill', drill: 'here:sunset-angel', name: 'Angel drill, Sunset style', minutes: 20, note: 'Bend it'},
+        {kind: 'drill', drill: 'box', name: 'Box drill', minutes: 15, note: ''}, {kind: 'block', title: 'Scrimmage', minutes: 30, note: ''}]})
   }});
   const vert = fromBuiltin('vert-stack', 'Tuesday vertical stack');
   await fake.addRepo(shortName('tuesday'), {files: vert ? {'drills/tuesday-vert.json': file('tuesday-vert', vert)} : {}});

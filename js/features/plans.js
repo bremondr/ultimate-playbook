@@ -7,7 +7,7 @@
    - prints a plan as a clean list with start times (a print stylesheet in css/features.css).
    The plan editor is plan-editor.js. Plans are stored by storage.js (savePlan, removePlan), next to the drills. */
 import { emit } from '../events.js';
-import { libEntries, plans, saveEntry, savePlanEntry } from '../library.js';
+import { libEntries, plans, repoPlans, saveEntry, savePlanEntry, team } from '../library.js';
 import { timeDraft } from '../model/timing.js';
 import { matchesQuery } from '../model/search.js';
 import { clock, drillItem, itemTitle, minutesText, newPlan, resolveItems, startTimes, totalMinutes } from '../model/plans.js';
@@ -18,21 +18,26 @@ import { canWrite, entryFrom, errText, saveDrill, savePlan, serialize, storeMode
 import { encodeQR, qrSvg } from './qr.js';
 import { $, newDocId } from '../util.js';
 import { editPlan } from './plan-editor.js';
+import { publishPlan, removeTeamPlan, teamPlanHistory, teamsToPublish } from './team.js';
 
-const planById = id => plans.find(p => p.id === id);
+// the plans saved here, and the plans of the teams followed (team.js), with the team's name on them
+const allPlans = () => [...plans, ...repoPlans];
+const planById = id => allPlans().find(p => p.id === id);
 const plural = (n, one, many = one + 's') => `${n} ${n === 1 ? one : many}`;
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 
 /* ---------- the drawer: a group above the plays and drills ---------- */
 addNavSection(query => {
-  const list = plans.filter(e => matchesQuery({name: e.plan.name, summary: e.plan.note, steps: e.plan.items.map(i => ({title: i.title || i.name}))}, query));
+  const list = allPlans().filter(e => matchesQuery({name: e.plan.name, summary: e.plan.note, steps: e.plan.items.map(i => ({title: i.title || i.name}))}, query));
   if (!list.length) return null;
   const grp = el('div', 'group plans'), ul = el('ul', 'list');
   grp.appendChild(el('h2', null, 'Practice plans'));
   list.forEach(e => {
     const li = el('li'), b = el('button', 'item');
     b.type = 'button'; b.dataset.plan = e.id;
-    b.append(el('b', null, e.plan.name), el('small', null, `${plural(e.plan.items.length, 'item')} · ${minutesText(totalMinutes(e.plan))}`));
+    const nm = el('b', null, e.plan.name);
+    if (e.repo){ const tg = el('span', 'tag team', e.label); nm.appendChild(tg); }
+    b.append(nm, el('small', null, `${plural(e.plan.items.length, 'item')} · ${minutesText(totalMinutes(e.plan))}`));
     b.addEventListener('click', () => { openDrawer(false); openRun(e.id, 0); });
     li.appendChild(b); ul.appendChild(li);
   });
@@ -74,8 +79,12 @@ function renderRun(){
   $('#plan-run-name').textContent = p.name;
   $('#plan-run-meta').textContent = `${plural(items.length, 'item')} · ${minutesText(total)}`;
   $('#plan-run-note').textContent = p.note; $('#plan-run-note').hidden = !p.note;
-  $('#plan-run-edit').hidden = canWrite === false || !!run.shared;
+  const local = !run.shared && !e.repo;
+  $('#plan-run-edit').hidden = run.shared || (e.repo ? !e.canWrite : canWrite === false);
   $('#plan-run-save').hidden = canWrite === false || !run.shared;
+  $('#plan-run-publish').hidden = !local || canWrite === false || !teamsToPublish().length;
+  $('#plan-run-history').hidden = !e.repo;
+  $('#plan-run-meta').textContent += e.repo ? ` · ${e.label} team plan` : '';
   const now = $('#plan-now'); now.replaceChildren();
   if (!items.length){
     now.appendChild(el('p', 'small', 'This plan has no items yet. Tap Edit to add drills and blocks.'));
@@ -110,7 +119,14 @@ function renderRun(){
 $('#plan-back').addEventListener('click', () => { if (run){ run.index--; renderRun(); } });
 $('#plan-next').addEventListener('click', () => { if (run){ run.index++; renderRun(); } });
 $('#plan-run-close').addEventListener('click', endPlan);
-$('#plan-run-edit').addEventListener('click', () => { const e = runPlan(); if (e && e.id){ closeRun(); editPlan(e.id, e.plan, () => openRun(e.id, run ? run.index : 0)); } });
+$('#plan-run-edit').addEventListener('click', () => {
+  const e = runPlan(); if (!e || !e.id) return;
+  closeRun();
+  const back = () => openRun(e.id, run ? run.index : 0);
+  // a team plan saves back to its team, and Delete removes it there
+  if (e.repo) editPlan(e.id, e.plan, back, {where: e.label, save: plan => publishPlan(e.repo, plan, {id: e.itemId}), remove: () => removeTeamPlan(e)});
+  else editPlan(e.id, e.plan, back);
+});
 $('#plan-run-print').addEventListener('click', () => { const e = runPlan(); if (e) printPlan(e.plan, runEntries()); });
 $('#plan-run-share').addEventListener('click', () => { const e = runPlan(); if (e) sharePlan(e.plan); });
 $('#plan-run-save').addEventListener('click', saveShared);
@@ -196,7 +212,7 @@ function printPlan(p, entries = libEntries()){
 export function plansChanged(){ if (!$('#plan-run').hidden) renderRun(); }
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  const open = ['#plan-share', '#plan-add', '#plan-run'].find(s => !$(s).hidden);
+  const open = ['#plan-publish', '#plan-share', '#plan-add', '#plan-run'].find(s => !$(s).hidden);
   if (!open) return;
   e.preventDefault(); e.stopPropagation();
   if (open === '#plan-run') endPlan(); else $(open).hidden = true;
@@ -208,6 +224,37 @@ export function planShowing(){
   const packed = run.shared && item && run.shared.drills[item.drill];
   if (!item || !current || (packed ? current.source !== 'shared' : current.id !== item.drill)) $('#plan-bar').hidden = true;
 }
+
+/* ---------- team repos (#53): publishing a plan, a team plan's history ---------- */
+function openPublish(){
+  const e = runPlan(); if (!e || e.repo || run.shared) return;
+  const teams = teamsToPublish(), pick = $('#plan-publish-team');
+  pick.replaceChildren(...teams.map(t => new Option(t.label, t.repo)));
+  $('#plan-publish-team-l').hidden = teams.length < 2;
+  const mine = new Set(e.plan.items.filter(it => it.kind === 'drill' && team.some(d => d.id === it.drill)).map(it => it.drill));
+  $('#plan-publish-what').textContent = `Everyone in the team will see “${e.plan.name}”.` +
+    (mine.size ? ` ${plural(mine.size, 'drill')} saved only on this device will be published to the team too, so they can open it.` : '');
+  $('#plan-publish-status').textContent = ''; $('#plan-publish-note').value = '';
+  $('#plan-publish').hidden = false;
+}
+$('#plan-run-publish').addEventListener('click', openPublish);
+$('#plan-publish-close').addEventListener('click', () => { $('#plan-publish').hidden = true; });
+$('#plan-publish-go').addEventListener('click', async () => {
+  const e = runPlan(), repo = $('#plan-publish-team').value; if (!e || !repo) return;
+  const btn = $('#plan-publish-go'), label = $('#plan-publish-team').selectedOptions[0]?.textContent || 'the team';
+  btn.disabled = true; $('#plan-publish-status').textContent = `Publishing to ${label}…`;
+  try {
+    const r = await publishPlan(repo, e.plan, {note: $('#plan-publish-note').value});
+    if (!r.ok){ $('#plan-publish-status').textContent = r.message; return; }
+    $('#plan-publish-status').textContent = `Published to ${label}${r.published ? `, with ${plural(r.published, 'drill')}` : ''}.`;
+    setTimeout(() => { $('#plan-publish').hidden = true; }, 1200);
+  } catch (err){ $('#plan-publish-status').textContent = err && err.message ? err.message : `Couldn’t publish to ${label}.`; }
+  finally { btn.disabled = false; }
+});
+$('#plan-run-history').addEventListener('click', () => {
+  const e = runPlan(); if (!e || !e.repo) return;
+  teamPlanHistory(e, (plan, date) => openRun(null, 0, {plan: {...plan, name: `${plan.name} (${date ? new Date(date).toLocaleDateString() : 'earlier'})`}, drills: {}}));
+});
 
 /* ---------- sharing a plan as one link (#52) ---------- */
 async function sharePlan(p){
