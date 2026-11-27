@@ -51,8 +51,8 @@ test('moving an item, and making items', () => {
   const p = moveItem(plan(), 0, 2);
   assert.deepEqual(p.items.map(i => i.title || i.drill), ['angel', 'Water break', 'Warm-up', 'gone']);
   assert.equal(moveItem(plan(), 0, 9).items[0].title, 'Warm-up', 'out of range: unchanged');
-  const entry = libEntries().find(e => e.id === 'box');
-  assert.deepEqual(drillItem(entry), {kind: 'drill', drill: 'box', name: 'Box drill', minutes: 10, note: ''});
+  const entry = libEntries().find(e => e.id === 'angel-cutback');
+  assert.deepEqual(drillItem(entry), {kind: 'drill', drill: 'angel-cutback', name: 'Angel drill: fake & cut back', minutes: 10, note: ''});
 });
 
 // backup.js looks up its drawer buttons when it loads; there are none in Node

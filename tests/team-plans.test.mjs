@@ -12,7 +12,7 @@ const TOKEN = 'github_pat_' + 'b'.repeat(40);
 const plan = {id: 'tue', name: 'Tuesday', note: 'Breaks', createdAt: 5, updatedAt: 6, items: [
   {kind: 'block', title: 'Warm-up', minutes: 15, note: ''},
   {kind: 'drill', drill: 'here:sunset-angel', name: 'Angel, Sunset style', minutes: 20, note: 'Bend it'},
-  {kind: 'drill', drill: 'box', name: 'Box drill', minutes: 10, note: ''}]};
+  {kind: 'drill', drill: 'angel-cutback', name: 'Angel drill: fake & cut back', minutes: 10, note: ''}]};
 
 test('a team plan file: written with its type, read back field by field', () => {
   const file = writeTeamPlan(plan);
@@ -28,12 +28,12 @@ test('a team plan file: written with its type, read back field by field', () => 
 test('references: here:<id> in the file, team:<repo>:<id> in the app', () => {
   const inApp = planRefsIn(plan, REPO);
   assert.equal(inApp.items[1].drill, `team:${REPO}:sunset-angel`);
-  assert.equal(inApp.items[2].drill, 'box');
+  assert.equal(inApp.items[2].drill, 'angel-cutback');
   const out = planRefsOut({...inApp, items: [...inApp.items,
     {kind: 'drill', drill: 'c123', name: 'Mine', minutes: 5, note: ''},
     {kind: 'drill', drill: 'team:bremondr/ultimate-playbook-tuesday:x', name: 'Theirs', minutes: 5, note: ''}]},
-    REPO, {isBuiltin: id => id === 'box', isSaved: id => id === 'c123'});
-  assert.deepEqual(out.plan.items.slice(0, 4).map(i => i.drill || i.title), ['Warm-up', 'here:sunset-angel', 'box', 'here:c123']);
+    REPO, {isBuiltin: id => id === 'angel-cutback', isSaved: id => id === 'c123'});
+  assert.deepEqual(out.plan.items.slice(0, 4).map(i => i.drill || i.title), ['Warm-up', 'here:sunset-angel', 'angel-cutback', 'here:c123']);
   assert.deepEqual(out.saved, ['c123'], 'drills saved only here are published along');
   assert.deepEqual(out.other, ['team:bremondr/ultimate-playbook-tuesday:x'], 'another team’s drill stops it');
 });
