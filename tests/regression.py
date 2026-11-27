@@ -466,6 +466,8 @@ def plans_flow(r, base):
     p.reload(); r.wait("document.querySelector('#pname').textContent !== '—'")
     r.click('#menu'); r.check(p.locator('#nav .plans .item').count() == 1, 'the plan is kept in this browser')
     p.click('#nav .plans .item'); r.check(r.visible('#plan-run') and r.text('#plan-now h3') == 'Warm-up', 'stepping through starts at the first item')
+    corner = p.evaluate("() => { const c = document.querySelector('#plan-run .plan-card').getBoundingClientRect(), x = document.querySelector('#plan-run-close').getBoundingClientRect(); return [c.right - x.right, x.top - c.top]; }")
+    r.check(all(0 <= d <= 16 for d in corner), f'the close button sits in the top-right corner (#62): {corner}')
     r.click('#plan-next'); r.check(r.text('#plan-now h3') == 'Angel drill' and r.text('#plan-now .k').startswith('2 of 2 · 0:10–0:21'), f'next item: {r.text("#plan-now .k")}')
     r.snap('plan-run')
     p.click('#plan-now .primary'); r.wait("document.querySelector('#pname').textContent === 'Angel drill'")

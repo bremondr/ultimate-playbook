@@ -208,7 +208,7 @@
 <!-- feature: practice plans (js/features/plans.js, plan-editor.js): stepping through, editing, adding a drill, printing -->
 <div class="planview" id="plan-run" role="dialog" aria-modal="true" aria-labelledby="plan-run-name" hidden>
   <div class="plan-card">
-    <header class="plan-head">
+    <header class="plan-head with-close">
       <div class="plan-title"><span class="k">Practice plan</span><h2 id="plan-run-name"></h2><p class="small" id="plan-run-meta"></p></div>
       <button class="primary" id="plan-run-save" type="button" hidden>Save to my plans</button>
       <button class="ghost" id="plan-run-edit" type="button">Edit</button>
@@ -217,7 +217,7 @@
       <button class="ghost" id="plan-run-publish" type="button" hidden>Publish to team…</button>
       <button class="ghost" id="plan-run-history" type="button" hidden>History</button>
       <button class="ghost" id="plan-run-print" type="button">Print</button>
-      <button class="ibtn" id="plan-run-close" type="button" aria-label="Close the plan">×</button>
+      <button class="ibtn plan-close" id="plan-run-close" type="button" title="Close the plan" aria-label="Close the plan">×</button>
     </header>
     <p class="small plan-note" id="plan-run-note"></p>
     <section class="plan-now" id="plan-now" aria-live="polite"></section>
