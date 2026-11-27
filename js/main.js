@@ -3,7 +3,7 @@ import { backToEditor, openEditor } from './editor/studio.js';
 import { editorKeys } from './editor/keys.js';
 import { dirty } from './editor/session.js';
 import { on } from './events.js';
-import { buildNav, closePops, markNav, openDrawer, showWriteAccess } from './nav.js';
+import { buildNav, closePops, focusSearch, markNav, openDrawer, showWriteAccess } from './nav.js';
 import { followStore, load, playing, select, setPlaying, stepNav, updateAct } from './player.js';
 import { mode, setOrient } from './render/view.js';
 import { initStore } from './storage.js';
@@ -32,6 +32,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape'){ openDrawer(false); closePops(); return; }
   if (typing) return;
   if (e.key === ' ' && e.target.closest('button')) return;
+  if (e.key === '/'){ e.preventDefault(); focusSearch(); return; }
   if (e.key === ' '){ e.preventDefault(); setPlaying(!playing); }
   else if (e.key === 'ArrowRight') stepNav(1);
   else if (e.key === 'ArrowLeft') stepNav(-1);
