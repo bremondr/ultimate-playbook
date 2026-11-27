@@ -15,6 +15,10 @@ export const PREFIX = 'ultimate-playbook-';
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const time = v => typeof v === 'number' && isFinite(v) && v >= 0 ? v : 0;
 
+/** The public demo team (demo drills and a demo plan), followed by default so a first visit has team drills to see.
+    Its label is Demo. Removing it in Teams and tokens is remembered (git-store-kit's `defaults`). */
+export const DEMO_REPO = `${OWNER}/${PREFIX}demo`;
+
 /** #team=sunset → bremondr/ultimate-playbook-sunset. (#team=owner/repo names any other repo.) */
 export const shortName = name => `${OWNER}/${PREFIX}${name}`;
 

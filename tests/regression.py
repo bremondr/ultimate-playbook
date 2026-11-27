@@ -6,7 +6,8 @@ Serves the folder with `python3 -m http.server`, opens it in headless Chrome (Py
   2. the main player and editor flows (with drawing throws, tags, practice plans, arrows per step, new discs, and Send feedback), on an iPad-sized and a phone-sized screen;
   3. the saved-drills path through a mocked `window.claude` team store (as when the page runs as a Claude artifact),
      and team repos (js/features/team.js) against the GitHub in memory that ?fakegithub plugs in: following a team
-     from its link, its drills in the list, a token, Publish to team, a conflict, history and Remove from team;
+     from its link, its drills in the list, a token, Publish to team, a conflict, history and Remove from team; the
+     demo team followed by default, read from its index with no API requests, and removed for good;
   4. the model output (positions, disc, facing, marks, timing) of every built-in drill, against tests/baseline.json.
 
     python3 tests/regression.py                    # run every check
@@ -542,17 +543,45 @@ EDIT_ON_GITHUB = """async repo => { const fake = window.PLAYBOOK_FAKE_GITHUB, pa
   await fake.edit(repo, path, {...fake.file(repo, path), name: 'Hex cuts (coach B)'}); }"""
 
 
+SUNSET_DRILLS = "[...document.querySelectorAll('#nav .group:not(.plans) .tag.team')].filter(t => t.textContent === 'Sunset').length"
+DEMO = 'bremondr/ultimate-playbook-demo'
+API_CALLS = "() => window.PLAYBOOK_FAKE_GITHUB.log.filter(e => e.url.startsWith('https://api.github.com/')).length"
+
+
+def demo_flow(r, base):
+    """The demo team (issue #68): followed on a first visit, read from its index with no API requests, removed for good."""
+    p = r.page
+    p.goto(base + '?fakegithub')
+    r.wait("document.querySelector('#team-lines').textContent.includes('Demo: 2 drills')")
+    r.check(p.locator('#nav .group:not(.plans) .tag.team:text-is("Demo")').count() == 2, 'the demo drills are in the list, tagged Demo')
+    r.wait("[...document.querySelectorAll('#nav .plans .item')].some(i => i.textContent.includes('Demo practice'))")
+    r.check(p.evaluate(API_CALLS) == 0, f'no API requests: the demo team is read from its index ({p.evaluate(API_CALLS)})')
+    r.click('#menu'); r.snap('demo')
+    # removed in Teams and tokens: gone from the drills and the plans, and still gone after a reload
+    r.click('#teams-open')
+    row = f'.gs-source[data-repo="{DEMO}"]'
+    r.click(f'{row} button:text-is("Remove")'); r.click(f'{row} button:text-is("Yes, remove")')
+    p.keyboard.press('Escape')
+    r.wait("!document.querySelector('#nav .tag.team')")
+    r.check(not p.locator('#nav .plans .item:has-text("Demo practice")').count(), 'the demo plan goes too')
+    p.reload(); r.wait("document.querySelector('#team-lines').textContent.includes('No teams yet')")
+    r.check(not p.locator('#nav .tag.team').count(), 'removing the demo team is remembered')
+    # its link follows it again
+    p.goto(base + '?fakegithub#team=demo')
+    r.wait("document.querySelector('#team-lines').textContent.includes('Demo: 2 drills')")
+
+
 def team_repo_flow(r, base):
     p = r.page
     p.goto(base + '?fakegithub#team=sunset')
     r.wait("document.querySelector('#team-lines').textContent.includes('Sunset: 2 drills')")
     r.check(p.evaluate('location.hash') == '', 'the team link is taken out of the address')
     r.check(r.visible('#drawer'), 'the list opens after following a team')
-    r.check(p.locator('#nav .group:not(.plans) .tag.team').all_text_contents() == ['Sunset', 'Sunset'], 'team drills tagged with the team')
+    r.check(p.locator('#nav .group:not(.plans) .tag.team:text-is("Sunset")').count() == 2, 'team drills tagged with the team')
     r.snap('followed')
     # a saved drill of my own, then a token for Sunset (both kept in this browser, so they survive the reload)
     p.evaluate(MY_DRILL, SUNSET)
-    p.reload(); r.wait("document.querySelectorAll('#nav .group:not(.plans) .tag.team').length === 2")
+    p.reload(); r.wait(SUNSET_DRILLS + ' === 2')
     r.click('#opts'); r.click('#opts-teams')
     row = f'.gs-source[data-repo="{SUNSET}"]'
     r.click(f'{row} [data-gs-token]'); p.fill(f'{row} .gs-input', FAKE_TOKEN); r.click(f'{row} .gs-primary')
@@ -564,7 +593,7 @@ def team_repo_flow(r, base):
     p.fill('#team-note', 'First version'); r.click('#team-publish-go')
     r.wait("document.querySelector('#team-share-status').textContent === 'Published to Sunset.'")
     r.check(p.evaluate("repo => window.PLAYBOOK_FAKE_GITHUB.commits(repo)[0].message", SUNSET) == 'First version', 'the note is the commit message')
-    r.check(p.locator('#nav .group:not(.plans) .tag.team').count() == 3, 'the published drill is in the list at once')
+    r.check(p.locator('#nav .group:not(.plans) .tag.team:text-is("Sunset")').count() == 3, 'the published drill is in the list at once')
     p.evaluate(EDIT_ON_GITHUB, SUNSET)
     r.click('#team-publish-go'); p.wait_for_selector('.gs-choices', timeout=10000)
     r.snap('conflict')
@@ -579,7 +608,7 @@ def team_repo_flow(r, base):
     r.snap('history')
     p.keyboard.press('Escape')
     r.click('#share'); r.click('#team-remove'); r.click('#team-remove')
-    r.wait("document.querySelectorAll('#nav .group:not(.plans) .tag.team').length === 2")
+    r.wait(SUNSET_DRILLS + ' === 2')
     r.check(p.evaluate("repo => window.PLAYBOOK_FAKE_GITHUB.file(repo, 'drills/c1mine.json')", SUNSET) is None, 'removed from the team')
 
 
@@ -599,7 +628,7 @@ def team_plans_flow(r, base):
     p.evaluate(MY_DRILL, SUNSET)
     p.evaluate("""() => localStorage.setItem('ub-plans', JSON.stringify({pl1: {name: 'Hex day', note: '', createdAt: 2, updatedAt: 2, items: [
       {kind: 'block', title: 'Warm-up', minutes: 10, note: ''}, {kind: 'drill', drill: 'c1mine', name: 'Hex cuts', minutes: 20, note: ''}]}}))""")
-    p.reload(); r.wait("document.querySelectorAll('#nav .plans .item').length === 2")
+    p.reload(); r.wait("['Sunset Tuesday', 'Hex day'].every(n => [...document.querySelectorAll('#nav .plans .item')].some(i => i.textContent.includes(n)))")
     r.click('#menu'); p.click('#nav .plans .item:has-text("Hex day")')
     r.check(r.visible('#plan-run-publish'), 'Publish to team on a local plan, also before there is a token')
     r.click('#plan-run-publish')
@@ -684,6 +713,11 @@ def main():
                 try: team_flow(r, base, can)
                 except Exception as e: r.failures.append(f'{r.name}: stopped: {e}')
                 failures += r.failures; r.page.context.close()
+
+            r = page_for('demo', VIEWPORTS['ipad'])
+            try: demo_flow(r, base)
+            except Exception as e: r.failures.append(f'{r.name}: stopped: {e}')
+            failures += r.failures; r.page.context.close()
 
             r = page_for('team-repos', VIEWPORTS['ipad'])
             try: team_repo_flow(r, base)

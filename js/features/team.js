@@ -2,14 +2,17 @@
    git-store-kit (js/vendor/git-store-kit/, a copy of a release from bremondr/web-kit) keeps the drills as files
    drills/<id>.json, one commit per change, reads them through GitHub's API, keeps the last good copy on the device,
    and has the panel for tokens, conflicts and history. team-format.js says what a drill file is. This file:
-   - follows a team from a link (#team=sunset, or #team=owner/repo) and loads every followed team at start;
+   - follows the demo team (bremondr/ultimate-playbook-demo) by default, and a team from a link (#team=sunset, or
+     #team=owner/repo), and loads every followed team at start. Without a token a team is read from its index file
+     (git-store-index.json) on raw.githubusercontent.com when it has one, so loading costs no GitHub API requests;
    - puts team drills in the drill list, read-only, tagged with the team's name (library.js, repoDrills);
    - says under the list when each team was last checked, or why it couldn't be loaded, with "Add a token";
    - in the share popover: Publish to team (a saved drill), History and Remove from team (a team drill), team links;
    - opens the panel from the drawer and the options popover.
    Not when the page runs as a Claude artifact: that has its own team store (storage.js).
    Trying it without GitHub: on a local server or a preview, add ?fakegithub to the address. The teams then come from
-   a GitHub in memory (fake-github.js) with two teams, sunset and tuesday, and a token shown in the drawer. */
+   a GitHub in memory (fake-github.js) with two teams, sunset and tuesday, the demo team (with an index file), and a
+   token shown in the drawer. */
 import { emit } from '../events.js';
 import { builtins, repoDrills, repoPlans, setRepoDrills, setRepoPlans, team } from '../library.js';
 import { timeDraft } from '../model/timing.js';
@@ -21,7 +24,7 @@ import { createPanel } from '../vendor/git-store-kit/panel.js';
 import { createGitStore, tokenNeed } from '../vendor/git-store-kit/store.js';
 import { indexedCache } from '../vendor/git-store-kit/cache.js';
 import { hashValue, hashWithout } from '../vendor/git-store-kit/sources.js';
-import { linkName, planRefsIn, planRefsOut, planStoreOptions, shortName, teamLabel, teamStoreOptions, writeTeamDrill, writeTeamPlan } from './team-format.js';
+import { DEMO_REPO, linkName, planRefsIn, planRefsOut, planStoreOptions, shortName, teamLabel, teamStoreOptions, writeTeamDrill, writeTeamPlan } from './team-format.js';
 
 const artifact = !!(window.claude && typeof window.claude.use === 'function');
 const preview = !!window.PLAYBOOK_PREVIEW;
@@ -36,13 +39,14 @@ let planStore = null, planPanel = null;
 
 /* ---------- start ---------- */
 async function start(){
-  let extra = {};
+  // the demo team is followed once, on a first visit; removing it is remembered (git-store-kit's `defaults`)
+  let extra = {defaults: [DEMO_REPO]};
   if (fakeMode){
     // a separate app name, so the fake teams never mix with the real ones in this browser's storage and saved copies
-    extra = {app: 'ultimate-playbook-fake', fetch: (await fakeGitHub()).fetch};
+    extra = {...extra, app: 'ultimate-playbook-fake', fetch: (await fakeGitHub()).fetch};
     const note = $('#teams-fake');
     note.hidden = false;
-    note.textContent = `Fake GitHub, for trying: teams “sunset” and “tuesday”. To publish, paste this token for a team in Teams and tokens: ${FAKE_TOKEN}`;
+    note.textContent = `Fake GitHub, for trying: teams “sunset” and “tuesday”, and the demo team. To publish, paste this token for a team in Teams and tokens: ${FAKE_TOKEN}`;
   }
   store = createGitStore(teamStoreOptions(extra));
   panel = createPanel(store, {title: preview ? 'Teams (preview)' : 'Teams', noun: 'drill', sourceLabel: 'team'});
@@ -92,7 +96,12 @@ function entriesOf(sources){
   return list.sort((a, b) => a.label.localeCompare(b.label) || (a.raw.createdAt - b.raw.createdAt) || a.play.name.localeCompare(b.play.name));
 }
 
+let followedBefore = null;
 function changed(sources){
+  // a team removed in Teams and tokens (the drills store's panel): the plans store drops it too, with its saved copy
+  const now = new Set(sources.map(s => s.repo.toLowerCase()));
+  if (followedBefore && planStore) for (const r of followedBefore) if (!now.has(r)) planStore.unfollow(r);
+  followedBefore = now;
   const next = entriesOf(sources);
   const key = list => JSON.stringify(list.map(e => [e.id, e.sha, e.canWrite]));
   if (key(next) !== key(repoDrills)){ setRepoDrills(next); emit('team-loaded'); }
@@ -299,9 +308,27 @@ async function fakeGitHub(){
         {kind: 'drill', drill: 'angel-cutback', name: 'Angel drill: fake & cut back', minutes: 15, note: ''}, {kind: 'block', title: 'Scrimmage', minutes: 30, note: ''}]})
   }});
   await fake.addRepo(shortName('tuesday'), {files: {'drills/tuesday-angel.json': file('tuesday-angel', {...angelDrill('basic'), name: 'Tuesday angel'})}});
+  await fake.addRepo(DEMO_REPO, {files: await withIndex({
+    'drills/demo-angel.json': file('demo-angel', {...angelDrill('basic'), name: 'Demo: angel drill'}),
+    'drills/demo-angel-break.json': file('demo-angel-break', {...angelDrill('break'), name: 'Demo: angel with a fake'}),
+    'plans/demo-practice.json': writeTeamPlan({id: 'demo-practice', name: 'Demo practice', note: '', createdAt: Date.now() - 864e5, updatedAt: Date.now() - 864e5,
+      items: [{kind: 'block', title: 'Warm-up', minutes: 15, note: ''}, {kind: 'drill', drill: 'here:demo-angel', name: 'Demo: angel drill', minutes: 20, note: ''}]})
+  })});
   for (const team of ['sunset', 'tuesday']) fake.addToken(FAKE_TOKEN, shortName(team), 'write');
   window.PLAYBOOK_FAKE_GITHUB = fake;   // for the regression check and for trying conflicts by hand (fake.edit)
   return fake;
+}
+
+// git-store-index.json for a fake repo, as the index workflow writes it in a real one: each folder's *.json files
+// with their git blob sha (the text is written the way the fake writes a file)
+async function withIndex(files){
+  const {gitBlobSha} = await import('../vendor/git-store-kit/github.js');
+  const folders = {};
+  for (const [path, json] of Object.entries(files)){
+    const [folder, name] = path.split('/'), text = JSON.stringify(json, null, 2) + '\n';
+    (folders[folder] ||= []).push({name, path, sha: await gitBlobSha(text), size: new TextEncoder().encode(text).length});
+  }
+  return {...files, 'git-store-index.json': {type: 'git-store-index', version: 1, generatedAt: new Date().toISOString(), commit: 'fake', folders}};
 }
 
 /* ---------- wiring ---------- */
